@@ -16,6 +16,7 @@ export type {
   PropertySchema,
   QuestionChoice,
   QuestionType,
+  SearchResult,
   StrReplaceOptions,
   StrReplaceResult,
   SubAgentContext,
@@ -36,6 +37,10 @@ export type {
   ToolParameterSchema,
   ViewOptions,
   ViewResult,
+  WebFetchOptions,
+  WebFetchResult,
+  WebSearchOptions,
+  WebSearchResult,
 } from "./types.js";
 
 // Bash tool
@@ -117,3 +122,22 @@ export {
 } from "./task.js";
 
 export type { SubAgentExecutor, TaskBroadcaster } from "./task.js";
+
+// WebFetch tool
+export {
+  clearWebFetchCaches,
+  createWebFetchHandler,
+  webFetch,
+  webFetchToolDefinition,
+} from "./web-fetch.js";
+
+// WebSearch tool
+export {
+  clearSearchProvider,
+  clearWebSearchCaches,
+  createWebSearchHandler,
+  getSearchProviderName,
+  setSearchProvider,
+  webSearch,
+  webSearchToolDefinition,
+} from "./web-search.js";

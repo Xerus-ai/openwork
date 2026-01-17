@@ -447,3 +447,87 @@ export interface TaskSummary {
   /** Number of timed out tasks */
   timedOut: number;
 }
+
+/**
+ * Options for WebFetch tool execution.
+ */
+export interface WebFetchOptions {
+  /** URL to fetch content from (must be HTTP or HTTPS) */
+  url: string;
+  /** Timeout in milliseconds (default: 30000 = 30 seconds) */
+  timeout?: number;
+  /** Custom headers to include in the request */
+  headers?: Record<string, string>;
+  /** Whether to follow redirects (default: true) */
+  followRedirects?: boolean;
+  /** Maximum response size in bytes (default: 10MB) */
+  maxResponseSize?: number;
+}
+
+/**
+ * Result from WebFetch tool execution.
+ */
+export interface WebFetchResult {
+  /** Whether the fetch was successful */
+  success: boolean;
+  /** URL that was fetched (may differ from input after redirects) */
+  url: string;
+  /** HTTP status code */
+  statusCode?: number;
+  /** HTTP status text */
+  statusText?: string;
+  /** Response content (text or base64 for binary) */
+  content?: string;
+  /** Content type from response headers */
+  contentType?: string;
+  /** Content length in bytes */
+  contentLength?: number;
+  /** Whether the content was truncated */
+  truncated?: boolean;
+  /** Whether the request timed out */
+  timedOut?: boolean;
+  /** Error message if the fetch failed */
+  error?: string;
+}
+
+/**
+ * Options for WebSearch tool execution.
+ */
+export interface WebSearchOptions {
+  /** Search query string */
+  query: string;
+  /** Maximum number of results to return (default: 10, max: 20) */
+  maxResults?: number;
+  /** Timeout in milliseconds (default: 30000 = 30 seconds) */
+  timeout?: number;
+}
+
+/**
+ * A single search result.
+ */
+export interface SearchResult {
+  /** Title of the search result */
+  title: string;
+  /** URL of the search result */
+  url: string;
+  /** Snippet or description of the result */
+  snippet: string;
+}
+
+/**
+ * Result from WebSearch tool execution.
+ */
+export interface WebSearchResult {
+  /** Whether the search was successful */
+  success: boolean;
+  /** The search query that was executed */
+  query: string;
+  /** Array of search results */
+  results?: SearchResult[];
+  /** Number of results returned */
+  resultCount?: number;
+  /** Whether the request timed out */
+  timedOut?: boolean;
+  /** Error message if the search failed */
+  error?: string;
+}
