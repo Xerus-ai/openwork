@@ -5,15 +5,19 @@
   "main": "dist/electron/main.js",
   "type": "module",
   "scripts": {
-    "build": "npm run build:agent && npm run build:electron",
+    "dev": "vite --config app/vite.config.ts",
+    "build": "npm run build:agent && npm run build:electron && npm run build:app",
     "build:agent": "tsc --project tsconfig.agent.json",
     "build:electron": "tsc --project tsconfig.electron.json",
+    "build:app": "vite build --config app/vite.config.ts",
     "build:watch": "tsc --watch",
     "start": "node dist/agent/index.js",
-    "electron:dev": "npm run build:electron && cross-env NODE_ENV=development electron dist/electron/main.js",
+    "electron:dev": "npm run build:electron && cross-env NODE_ENV=development VITE_DEV_SERVER_URL=http://localhost:5173 electron dist/electron/main.js",
     "electron:start": "electron dist/electron/main.js",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit --project tsconfig.agent.json && tsc --noEmit --project tsconfig.electron.json",
+    "typecheck": "tsc --noEmit --project tsconfig.agent.json && tsc --noEmit --project tsconfig.electron.json && tsc --noEmit --project app/tsconfig.json",
+    "lint": "eslint app --config app/eslint.config.js",
+    "lint:fix": "eslint app --config app/eslint.config.js --fix",
     "test": "vitest run"
   },
   "keywords": [
@@ -28,14 +32,26 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.71.2"
+    "@anthropic-ai/sdk": "^0.71.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
     "@types/node": "^25.0.9",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
     "cross-env": "^7.0.3",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
+    "eslint": "^9.39.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "globals": "^17.0.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.53.0",
+    "vite": "^7.3.1",
     "vitest": "^4.0.17"
   }
 }

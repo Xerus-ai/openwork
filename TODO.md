@@ -21,7 +21,7 @@
 ## Phase 2: UI Foundation
 
 - [x] [016 - Set up Electron app scaffold with IPC foundation](docs/tasks/archive/016-electron-app-scaffold/spec.md) (Effort: M, Tier: standard)
-- [ ] [017 - Set up React + Vite project with TypeScript](docs/tasks/active/017-react-vite-setup/spec.md) (Effort: S, Tier: standard)
+- [x] [017 - Set up React + Vite project with TypeScript](docs/tasks/archive/017-react-vite-setup/spec.md) (Effort: S, Tier: standard)
 - [ ] [018 - Install and configure shadcn/ui components](docs/tasks/active/018-shadcn-ui-setup/spec.md) (Effort: S, Tier: mini)
 - [ ] [019 - Create three-pane layout structure](docs/tasks/active/019-three-pane-layout/spec.md) (Effort: M, Tier: standard)
 - [ ] [020 - Implement ChatPane with message history and streaming](docs/tasks/active/020-chatpane-component/spec.md) (Effort: M, Tier: standard)
