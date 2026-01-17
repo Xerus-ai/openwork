@@ -1,0 +1,33 @@
+{
+  "name": "claude-cowork",
+  "version": "1.0.0",
+  "description": "Cross-platform (Windows and macOS) agentic workspace integration for Claude",
+  "main": "dist/agent/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/agent/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"No tests configured yet\" && exit 0"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "agent",
+    "workspace"
+  ],
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.9",
+    "typescript": "^5.9.3"
+  }
+}
