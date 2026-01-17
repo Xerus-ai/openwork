@@ -1,125 +1,141 @@
 import type { ReactElement } from 'react';
-import { useState } from 'react';
-import {
-  Button,
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-  Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui';
+import { Layout } from '@/components/Layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
+
+/**
+ * Placeholder component for the Chat pane.
+ * Will be replaced with ChatPane component in task 020.
+ */
+function ChatPanePlaceholder(): ReactElement {
+  return (
+    <div className="h-full p-4 flex flex-col">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold">Chat</h2>
+        <p className="text-sm text-muted-foreground">
+          Message history and input will appear here
+        </p>
+      </div>
+
+      <div className="flex-1 overflow-auto space-y-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Quick Actions</CardTitle>
+            <CardDescription className="text-xs">
+              Common tasks (placeholder)
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-2">
+            {['Create a file', 'Crunch data', 'Organize files', 'Research topic'].map(
+              (action) => (
+                <div
+                  key={action}
+                  className="p-3 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors text-sm"
+                >
+                  {action}
+                </div>
+              )
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Input area placeholder */}
+      <div className="mt-4 p-3 rounded-lg border bg-muted/30">
+        <div className="text-sm text-muted-foreground">
+          Type a task here or use / for more tools
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Placeholder component for the Execution pane.
+ * Will be replaced with ExecutionPane component in task 025.
+ */
+function ExecutionPanePlaceholder(): ReactElement {
+  return (
+    <div className="h-full p-4 flex flex-col items-center justify-center">
+      <div className="text-center max-w-md">
+        <div className="text-6xl mb-4">~</div>
+        <h2 className="text-xl font-semibold mb-2">
+          Let's knock something off your list
+        </h2>
+        <p className="text-muted-foreground">
+          Select a quick action or type a task to get started.
+          Execution output and file previews will appear here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Placeholder component for the State pane.
+ * Will be replaced with StatePane component in tasks 028-030.
+ */
+function StatePanePlaceholder(): ReactElement {
+  return (
+    <div className="h-full p-4 space-y-4">
+      {/* Progress section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Progress</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
+            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Steps will show as the task unfolds.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Artifacts section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Artifacts</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="w-12 h-12 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
+            <span className="text-muted-foreground text-lg">+</span>
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Outputs created during the task land here.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Context section */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm">Context</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs text-muted-foreground">
+            Track the tools and files in use as Claude works.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
 /**
  * Root React component for Claude Cowork.
- * Demonstrates shadcn/ui components with proper theming.
+ * Renders the three-pane layout with Chat, Execution, and State sections.
  */
 function App(): ReactElement {
-  const [inputValue, setInputValue] = useState('');
-  const [selectedModel, setSelectedModel] = useState('');
-
-  function handleInputChange(event: React.ChangeEvent<HTMLInputElement>): void {
-    setInputValue(event.target.value);
-  }
-
-  function toggleDarkMode(): void {
-    document.documentElement.classList.toggle('dark');
-  }
-
   return (
-    <div className="min-h-screen p-8">
-      <header className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">
-          Claude Cowork
-        </h1>
-        <p className="text-muted-foreground">
-          Cross-platform agentic workspace
-        </p>
-      </header>
-
-      <main className="max-w-2xl mx-auto space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>shadcn/ui Components</CardTitle>
-            <CardDescription>
-              Testing Button, Input, Card, and Select components
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Input Component</label>
-              <Input
-                placeholder="Type something..."
-                value={inputValue}
-                onChange={handleInputChange}
-              />
-              {inputValue && (
-                <p className="text-sm text-muted-foreground">
-                  You typed: {inputValue}
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Select Component</label>
-              <Select value={selectedModel} onValueChange={setSelectedModel}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a model" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sonnet">Claude Sonnet 4.5</SelectItem>
-                  <SelectItem value="opus">Claude Opus 4.5</SelectItem>
-                  <SelectItem value="haiku">Claude Haiku 3.5</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedModel && (
-                <p className="text-sm text-muted-foreground">
-                  Selected: {selectedModel}
-                </p>
-              )}
-            </div>
-          </CardContent>
-          <CardFooter className="flex gap-2 flex-wrap">
-            <Button>Default</Button>
-            <Button variant="secondary">Secondary</Button>
-            <Button variant="outline">Outline</Button>
-            <Button variant="ghost">Ghost</Button>
-            <Button variant="destructive">Destructive</Button>
-            <Button variant="link">Link</Button>
-          </CardFooter>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Theme Toggle</CardTitle>
-            <CardDescription>Switch between light and dark mode</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={toggleDarkMode} variant="outline">
-              Toggle Dark Mode
-            </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Button Sizes</CardTitle>
-            <CardDescription>Available button sizes</CardDescription>
-          </CardHeader>
-          <CardFooter className="flex gap-2 items-center">
-            <Button size="sm">Small</Button>
-            <Button size="default">Default</Button>
-            <Button size="lg">Large</Button>
-            <Button size="icon">+</Button>
-          </CardFooter>
-        </Card>
-      </main>
+    <div className="h-screen w-screen overflow-hidden">
+      <Layout
+        chatPane={<ChatPanePlaceholder />}
+        executionPane={<ExecutionPanePlaceholder />}
+        statePane={<StatePanePlaceholder />}
+      />
     </div>
   );
 }
