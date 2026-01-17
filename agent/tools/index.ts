@@ -18,6 +18,15 @@ export type {
   QuestionType,
   StrReplaceOptions,
   StrReplaceResult,
+  TodoItem,
+  TodoList,
+  TodoReadResult,
+  TodoStatus,
+  TodoSummary,
+  TodoUpdateOptions,
+  TodoUpdateResult,
+  TodoWriteOptions,
+  TodoWriteResult,
   ToolDefinition,
   ToolParameterSchema,
   ViewOptions,
@@ -64,3 +73,22 @@ export {
 } from "./ask-user-question.js";
 
 export type { QuestionSender, UserResponse } from "./ask-user-question.js";
+
+// TodoList tools
+export {
+  clearTodoListBroadcaster,
+  createTodoReadHandler,
+  createTodoUpdateHandler,
+  createTodoWriteHandler,
+  getTodoListManager,
+  setTodoListBroadcaster,
+  todoRead,
+  todoReadToolDefinition,
+  todoUpdate,
+  todoUpdateToolDefinition,
+  todoWrite,
+  todoWriteToolDefinition,
+  TodoListManager,
+} from "./todolist.js";
+
+export type { TodoListBroadcaster } from "./todolist.js";

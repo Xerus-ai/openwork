@@ -250,3 +250,116 @@ export interface AskUserQuestionResult {
   /** Error message if the question failed */
   error?: string;
 }
+
+/**
+ * Status of a todo item.
+ */
+export type TodoStatus = "pending" | "in_progress" | "completed" | "blocked";
+
+/**
+ * A single todo item in the task list.
+ */
+export interface TodoItem {
+  /** Unique identifier for the todo item */
+  id: string;
+  /** Description of the task */
+  content: string;
+  /** Current status of the task */
+  status: TodoStatus;
+  /** ISO timestamp when the item was created */
+  createdAt: string;
+  /** ISO timestamp when the item was last updated */
+  updatedAt: string;
+  /** ISO timestamp when the item was completed (if completed) */
+  completedAt?: string;
+  /** Reason for being blocked (if blocked) */
+  blockedReason?: string;
+}
+
+/**
+ * The complete todo list state.
+ */
+export interface TodoList {
+  /** All todo items in the list */
+  items: TodoItem[];
+  /** ISO timestamp when the list was created */
+  createdAt: string;
+  /** ISO timestamp when the list was last updated */
+  updatedAt: string;
+}
+
+/**
+ * Options for TodoWrite tool execution.
+ */
+export interface TodoWriteOptions {
+  /** List of task descriptions to create */
+  tasks: string[];
+}
+
+/**
+ * Result from TodoWrite tool execution.
+ */
+export interface TodoWriteResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** The created todo list */
+  todoList?: TodoList;
+  /** Number of tasks created */
+  taskCount?: number;
+  /** Error message if the operation failed */
+  error?: string;
+}
+
+/**
+ * Options for TodoUpdate tool execution.
+ */
+export interface TodoUpdateOptions {
+  /** ID of the task to update */
+  taskId: string;
+  /** New status for the task */
+  status: TodoStatus;
+  /** Reason for blocking (required if status is blocked) */
+  blockedReason?: string;
+}
+
+/**
+ * Result from TodoUpdate tool execution.
+ */
+export interface TodoUpdateResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** The updated todo item */
+  updatedItem?: TodoItem;
+  /** Error message if the operation failed */
+  error?: string;
+}
+
+/**
+ * Result from TodoRead tool execution.
+ */
+export interface TodoReadResult {
+  /** Whether the operation was successful */
+  success: boolean;
+  /** The current todo list */
+  todoList?: TodoList;
+  /** Summary statistics */
+  summary?: TodoSummary;
+  /** Error message if the operation failed */
+  error?: string;
+}
+
+/**
+ * Summary statistics for the todo list.
+ */
+export interface TodoSummary {
+  /** Total number of tasks */
+  total: number;
+  /** Number of pending tasks */
+  pending: number;
+  /** Number of in-progress tasks */
+  inProgress: number;
+  /** Number of completed tasks */
+  completed: number;
+  /** Number of blocked tasks */
+  blocked: number;
+}

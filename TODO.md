@@ -9,7 +9,7 @@
 - [x] [005 - Implement str_replace tool for file editing](docs/tasks/archive/005-str-replace-tool/spec.md) (Effort: S, Tier: standard)
 - [x] [006 - Implement view tool for reading files and directories](docs/tasks/archive/006-view-tool/spec.md) (Effort: M, Tier: standard)
 - [x] [007 - Implement AskUserQuestion tool with multi-choice support](docs/tasks/archive/007-askuserquestion-tool/spec.md) (Effort: M, Tier: standard)
-- [ ] [008 - Implement TodoList tools (TodoWrite, TodoUpdate, TodoRead)](docs/tasks/active/008-todolist-tools/spec.md) (Effort: M, Tier: standard)
+- [x] [008 - Implement TodoList tools (TodoWrite, TodoUpdate, TodoRead)](docs/tasks/archive/008-todolist-tools/spec.md) (Effort: M, Tier: standard)
 - [ ] [009 - Implement Task tool for sub-agent spawning](docs/tasks/active/009-task-tool/spec.md) (Effort: M, Tier: standard)
 - [ ] [010 - Implement WebFetch and WebSearch tools](docs/tasks/active/010-web-tools/spec.md) (Effort: M, Tier: standard)
 - [ ] [011 - Create skills loading system with caching](docs/tasks/active/011-skills-loading-system/spec.md) (Effort: M, Tier: standard)
