@@ -1,29 +1,108 @@
 /**
  * Global styles for Claude Cowork
- * Base styling for the application
+ * Uses Tailwind CSS v4 with shadcn/ui theming
  */
 
-:root {
-  --color-bg-primary: #1a1a2e;
-  --color-bg-secondary: #16213e;
-  --color-bg-tertiary: #0f3460;
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a0a0a0;
-  --color-accent: #e94560;
-  --color-accent-hover: #ff6b6b;
-  --border-radius: 8px;
-  --spacing-xs: 4px;
-  --spacing-sm: 8px;
-  --spacing-md: 16px;
-  --spacing-lg: 24px;
-  --spacing-xl: 32px;
+@import "tailwindcss";
+
+/**
+ * shadcn/ui theme configuration
+ * Light and dark mode CSS variables
+ */
+@theme {
+  /* Light mode colors (default) */
+  --color-background: oklch(1 0 0);
+  --color-foreground: oklch(0.145 0.017 285.823);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.145 0.017 285.823);
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.145 0.017 285.823);
+  --color-primary: oklch(0.205 0.042 265.755);
+  --color-primary-foreground: oklch(0.985 0 0);
+  --color-secondary: oklch(0.97 0.014 254.604);
+  --color-secondary-foreground: oklch(0.205 0.042 265.755);
+  --color-muted: oklch(0.97 0.014 254.604);
+  --color-muted-foreground: oklch(0.556 0.022 257.417);
+  --color-accent: oklch(0.97 0.014 254.604);
+  --color-accent-foreground: oklch(0.205 0.042 265.755);
+  --color-destructive: oklch(0.577 0.245 27.325);
+  --color-destructive-foreground: oklch(0.577 0.245 27.325);
+  --color-border: oklch(0.922 0.004 286.32);
+  --color-input: oklch(0.922 0.004 286.32);
+  --color-ring: oklch(0.871 0.006 286.286);
+  --color-chart-1: oklch(0.646 0.222 41.116);
+  --color-chart-2: oklch(0.6 0.118 184.704);
+  --color-chart-3: oklch(0.398 0.07 227.392);
+  --color-chart-4: oklch(0.828 0.189 84.429);
+  --color-chart-5: oklch(0.769 0.188 70.08);
+
+  /* Radius and spacing */
+  --radius-lg: 0.5rem;
+  --radius-md: calc(var(--radius-lg) - 2px);
+  --radius-sm: calc(var(--radius-lg) - 4px);
+  --radius-xl: calc(var(--radius-lg) + 4px);
+  --radius-2xl: calc(var(--radius-lg) + 8px);
+
+  /* Sidebar colors */
+  --color-sidebar: oklch(0.985 0 0);
+  --color-sidebar-foreground: oklch(0.145 0.017 285.823);
+  --color-sidebar-primary: oklch(0.205 0.042 265.755);
+  --color-sidebar-primary-foreground: oklch(0.985 0 0);
+  --color-sidebar-accent: oklch(0.97 0.014 254.604);
+  --color-sidebar-accent-foreground: oklch(0.205 0.042 265.755);
+  --color-sidebar-border: oklch(0.922 0.004 286.32);
+  --color-sidebar-ring: oklch(0.871 0.006 286.286);
 }
 
+/**
+ * Dark mode theme override
+ */
+.dark {
+  --color-background: oklch(0.145 0.017 285.823);
+  --color-foreground: oklch(0.985 0 0);
+  --color-card: oklch(0.145 0.017 285.823);
+  --color-card-foreground: oklch(0.985 0 0);
+  --color-popover: oklch(0.145 0.017 285.823);
+  --color-popover-foreground: oklch(0.985 0 0);
+  --color-primary: oklch(0.985 0 0);
+  --color-primary-foreground: oklch(0.205 0.042 265.755);
+  --color-secondary: oklch(0.269 0.03 256.802);
+  --color-secondary-foreground: oklch(0.985 0 0);
+  --color-muted: oklch(0.269 0.03 256.802);
+  --color-muted-foreground: oklch(0.705 0.015 286.067);
+  --color-accent: oklch(0.269 0.03 256.802);
+  --color-accent-foreground: oklch(0.985 0 0);
+  --color-destructive: oklch(0.704 0.191 22.216);
+  --color-destructive-foreground: oklch(0.704 0.191 22.216);
+  --color-border: oklch(0.269 0.03 256.802);
+  --color-input: oklch(0.269 0.03 256.802);
+  --color-ring: oklch(0.439 0.031 257.287);
+  --color-chart-1: oklch(0.488 0.243 264.376);
+  --color-chart-2: oklch(0.696 0.17 162.48);
+  --color-chart-3: oklch(0.769 0.188 70.08);
+  --color-chart-4: oklch(0.627 0.265 303.9);
+  --color-chart-5: oklch(0.645 0.246 16.439);
+  --color-sidebar: oklch(0.205 0.042 265.755);
+  --color-sidebar-foreground: oklch(0.985 0 0);
+  --color-sidebar-primary: oklch(0.488 0.243 264.376);
+  --color-sidebar-primary-foreground: oklch(0.985 0 0);
+  --color-sidebar-accent: oklch(0.269 0.03 256.802);
+  --color-sidebar-accent-foreground: oklch(0.985 0 0);
+  --color-sidebar-border: oklch(0.269 0.03 256.802);
+  --color-sidebar-ring: oklch(0.439 0.031 257.287);
+}
+
+/**
+ * Base styles for body and html elements
+ */
 * {
   box-sizing: border-box;
+  border-color: var(--color-border);
 }
 
-html, body, #root {
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -31,79 +110,12 @@ html, body, #root {
 }
 
 body {
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-.app {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  padding: var(--spacing-lg);
-}
-
-.app-header {
-  text-align: center;
-  margin-bottom: var(--spacing-xl);
-}
-
-.app-header h1 {
-  margin: 0 0 var(--spacing-sm) 0;
-  font-size: 2rem;
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.app-header p {
-  margin: 0;
-  color: var(--color-text-secondary);
-}
-
-.app-main {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.test-section {
-  text-align: center;
-  padding: var(--spacing-xl);
-  background-color: var(--color-bg-secondary);
-  border-radius: var(--border-radius);
-}
-
-.test-section p {
-  margin: 0 0 var(--spacing-md) 0;
-  font-size: 1.25rem;
-}
-
-button {
-  padding: var(--spacing-sm) var(--spacing-lg);
-  font-size: 1rem;
-  font-weight: 500;
-  color: var(--color-text-primary);
-  background-color: var(--color-accent);
-  border: none;
-  border-radius: var(--border-radius);
-  cursor: pointer;
-  transition: background-color 0.2s ease;
-}
-
-button:hover {
-  background-color: var(--color-accent-hover);
-}
-
-button:focus {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
-
-button:active {
-  transform: scale(0.98);
 }
