@@ -16,11 +16,11 @@
 - [x] [012 - Implement skills detection logic from user requests](docs/tasks/archive/012-skills-detection-logic/spec.md) (Effort: S, Tier: standard)
 - [x] [013 - Add system prompt integration to agent initialization](docs/tasks/archive/013-system-prompt-integration/spec.md) (Effort: S, Tier: standard)
 - [x] [014 - Add cross-platform path handling utilities](docs/tasks/archive/014-path-handling-utilities/spec.md) (Effort: S, Tier: mini)
-- [ ] [015 - Add workspace folder validation and permission checks](docs/tasks/active/015-workspace-validation/spec.md) (Effort: S, Tier: standard)
+- [x] [015 - Add workspace folder validation and permission checks](docs/tasks/archive/015-workspace-validation/spec.md) (Effort: S, Tier: standard)
 
 ## Phase 2: UI Foundation
 
-- [ ] [016 - Set up Electron app scaffold with IPC foundation](docs/tasks/active/016-electron-app-scaffold/spec.md) (Effort: M, Tier: standard)
+- [x] [016 - Set up Electron app scaffold with IPC foundation](docs/tasks/archive/016-electron-app-scaffold/spec.md) (Effort: M, Tier: standard)
 - [ ] [017 - Set up React + Vite project with TypeScript](docs/tasks/active/017-react-vite-setup/spec.md) (Effort: S, Tier: standard)
 - [ ] [018 - Install and configure shadcn/ui components](docs/tasks/active/018-shadcn-ui-setup/spec.md) (Effort: S, Tier: mini)
 - [ ] [019 - Create three-pane layout structure](docs/tasks/active/019-three-pane-layout/spec.md) (Effort: M, Tier: standard)

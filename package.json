@@ -2,14 +2,18 @@
   "name": "claude-cowork",
   "version": "1.0.0",
   "description": "Cross-platform (Windows and macOS) agentic workspace integration for Claude",
-  "main": "dist/agent/index.js",
+  "main": "dist/electron/main.js",
   "type": "module",
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:agent && npm run build:electron",
+    "build:agent": "tsc --project tsconfig.agent.json",
+    "build:electron": "tsc --project tsconfig.electron.json",
     "build:watch": "tsc --watch",
     "start": "node dist/agent/index.js",
+    "electron:dev": "npm run build:electron && cross-env NODE_ENV=development electron dist/electron/main.js",
+    "electron:start": "electron dist/electron/main.js",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --project tsconfig.agent.json && tsc --noEmit --project tsconfig.electron.json",
     "test": "vitest run"
   },
   "keywords": [
@@ -28,6 +32,9 @@
   },
   "devDependencies": {
     "@types/node": "^25.0.9",
+    "cross-env": "^7.0.3",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.4.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.17"
   }

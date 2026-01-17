@@ -4,6 +4,8 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "lib": ["ES2022"],
+    "outDir": "./dist/electron",
+    "rootDir": "./electron",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -25,8 +27,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "references": [
-    { "path": "./tsconfig.agent.json" },
-    { "path": "./tsconfig.electron.json" }
-  ]
+  "include": ["electron/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }
