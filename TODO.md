@@ -3,7 +3,7 @@
 ## Phase 1: Agent Core
 
 - [x] [001 - Set up Agent SDK TypeScript project with dependencies](docs/tasks/archive/001-setup-agent-sdk-project/spec.md) (Effort: S, Tier: standard)
-- [ ] [002 - Implement cross-platform shell abstraction layer](docs/tasks/active/002-shell-abstraction-layer/spec.md) (Effort: M, Tier: standard)
+- [x] [002 - Implement cross-platform shell abstraction layer](docs/tasks/archive/002-shell-abstraction-layer/spec.md) (Effort: M, Tier: standard)
 - [ ] [003 - Implement bash tool with PowerShell/cmd/bash support](docs/tasks/active/003-bash-tool-implementation/spec.md) (Effort: M, Tier: standard)
 - [ ] [004 - Implement file_create tool for workspace operations](docs/tasks/active/004-file-create-tool/spec.md) (Effort: S, Tier: standard)
 - [ ] [005 - Implement str_replace tool for file editing](docs/tasks/active/005-str-replace-tool/spec.md) (Effort: S, Tier: standard)
