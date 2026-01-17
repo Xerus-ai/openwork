@@ -18,6 +18,11 @@ export type {
   QuestionType,
   StrReplaceOptions,
   StrReplaceResult,
+  SubAgentContext,
+  SubAgentStatus,
+  TaskOptions,
+  TaskResult,
+  TaskSummary,
   TodoItem,
   TodoList,
   TodoReadResult,
@@ -92,3 +97,23 @@ export {
 } from "./todolist.js";
 
 export type { TodoListBroadcaster } from "./todolist.js";
+
+// Task tool
+export {
+  cancelTask,
+  clearFinishedTasks,
+  clearTaskBroadcaster,
+  clearTaskExecutor,
+  createTaskHandler,
+  getAllTasks,
+  getTask,
+  getTaskManager,
+  getTaskSummary,
+  setTaskBroadcaster,
+  setTaskExecutor,
+  spawnTask,
+  taskToolDefinition,
+  TaskManager,
+} from "./task.js";
+
+export type { SubAgentExecutor, TaskBroadcaster } from "./task.js";

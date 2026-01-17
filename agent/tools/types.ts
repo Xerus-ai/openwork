@@ -363,3 +363,87 @@ export interface TodoSummary {
   /** Number of blocked tasks */
   blocked: number;
 }
+
+/**
+ * Status of a sub-agent task.
+ */
+export type SubAgentStatus = "pending" | "running" | "completed" | "failed" | "cancelled" | "timeout";
+
+/**
+ * Context for a sub-agent execution.
+ * Contains all information needed to run the sub-agent in isolation.
+ */
+export interface SubAgentContext {
+  /** Unique identifier for this sub-agent instance */
+  id: string;
+  /** Instructions/prompt for the sub-agent to execute */
+  instructions: string;
+  /** Optional input data to provide to the sub-agent */
+  input?: string;
+  /** Current status of the sub-agent */
+  status: SubAgentStatus;
+  /** ISO timestamp when the sub-agent was created */
+  createdAt: string;
+  /** ISO timestamp when the sub-agent started running */
+  startedAt?: string;
+  /** ISO timestamp when the sub-agent completed */
+  completedAt?: string;
+  /** Result from the sub-agent execution */
+  result?: string;
+  /** Error message if the sub-agent failed */
+  error?: string;
+}
+
+/**
+ * Options for Task tool execution.
+ */
+export interface TaskOptions {
+  /** Instructions for the sub-agent to execute */
+  instructions: string;
+  /** Optional input data to provide to the sub-agent */
+  input?: string;
+  /** Timeout in milliseconds (default: 300000 = 5 minutes) */
+  timeout?: number;
+  /** Description of what this task does (for logging/display) */
+  description?: string;
+}
+
+/**
+ * Result from Task tool execution.
+ */
+export interface TaskResult {
+  /** Whether the task executed successfully */
+  success: boolean;
+  /** Unique identifier for the spawned sub-agent */
+  taskId: string;
+  /** Current status of the sub-agent */
+  status: SubAgentStatus;
+  /** Result from the sub-agent execution (if completed) */
+  result?: string;
+  /** Whether the task timed out */
+  timedOut?: boolean;
+  /** Whether the task was cancelled */
+  cancelled?: boolean;
+  /** Error message if the task failed */
+  error?: string;
+}
+
+/**
+ * Summary statistics for active tasks.
+ */
+export interface TaskSummary {
+  /** Total number of tasks */
+  total: number;
+  /** Number of pending tasks */
+  pending: number;
+  /** Number of running tasks */
+  running: number;
+  /** Number of completed tasks */
+  completed: number;
+  /** Number of failed tasks */
+  failed: number;
+  /** Number of cancelled tasks */
+  cancelled: number;
+  /** Number of timed out tasks */
+  timedOut: number;
+}
