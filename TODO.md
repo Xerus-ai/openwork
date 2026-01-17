@@ -12,7 +12,7 @@
 - [x] [008 - Implement TodoList tools (TodoWrite, TodoUpdate, TodoRead)](docs/tasks/archive/008-todolist-tools/spec.md) (Effort: M, Tier: standard)
 - [x] [009 - Implement Task tool for sub-agent spawning](docs/tasks/archive/009-task-tool/spec.md) (Effort: M, Tier: standard)
 - [x] [010 - Implement WebFetch and WebSearch tools](docs/tasks/archive/010-web-tools/spec.md) (Effort: M, Tier: standard)
-- [ ] [011 - Create skills loading system with caching](docs/tasks/active/011-skills-loading-system/spec.md) (Effort: M, Tier: standard)
+- [x] [011 - Create skills loading system with caching](docs/tasks/archive/011-skills-loading-system/spec.md) (Effort: M, Tier: standard)
 - [ ] [012 - Implement skills detection logic from user requests](docs/tasks/active/012-skills-detection-logic/spec.md) (Effort: S, Tier: standard)
 - [ ] [013 - Add system prompt integration to agent initialization](docs/tasks/active/013-system-prompt-integration/spec.md) (Effort: S, Tier: standard)
 - [ ] [014 - Add cross-platform path handling utilities](docs/tasks/active/014-path-handling-utilities/spec.md) (Effort: S, Tier: mini)
