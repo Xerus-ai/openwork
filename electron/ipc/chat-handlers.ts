@@ -5,6 +5,11 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import { AgentBridge, getAgentBridge } from './agent-bridge.js';
+import {
+  setCurrentRequestId,
+  initializeTodoListHandlers,
+  cleanupTodoListHandlers,
+} from './todolist-handlers.js';
 
 /**
  * Configuration for the chat handler service.
@@ -120,6 +125,9 @@ export class ChatHandlerService {
       // Clear conversation history for new session
       this.conversationHistory = [];
 
+      // Initialize TodoList handlers for progress tracking
+      initializeTodoListHandlers();
+
       // Mark bridge as initialized
       this.bridge.setInitialized(true);
 
@@ -186,6 +194,9 @@ If you encounter errors, explain them clearly and suggest solutions.`;
 
     this.isProcessing = true;
     this.abortController = new AbortController();
+
+    // Set current request ID for TodoList broadcasts
+    setCurrentRequestId(requestId);
 
     try {
       // Build message content
@@ -294,6 +305,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     } finally {
       this.isProcessing = false;
       this.abortController = null;
+      setCurrentRequestId(null);
       this.bridge.markComplete();
     }
   }
@@ -366,6 +378,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     this.client = null;
     this.conversationHistory = [];
     this.systemPrompt = '';
+    cleanupTodoListHandlers();
     console.log('[ChatHandlerService] Cleaned up');
   }
 }

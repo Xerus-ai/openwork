@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { useProgress } from '@/hooks/useProgress';
+import { useTodoList } from '@/hooks/useTodoList';
 import { useArtifacts } from '@/hooks/useArtifacts';
 import { useSessionContext } from '@/hooks/useSessionContext';
 import { ProgressSection } from './ProgressSection';
@@ -27,7 +27,7 @@ export interface StatePaneProps {
 export const StatePane = memo(function StatePane({
   className,
 }: StatePaneProps): ReactElement {
-  const { items, summary: progressSummary, currentItemId } = useProgress();
+  const { items, summary: progressSummary, currentItemId } = useTodoList();
   const {
     artifacts,
     summary: artifactsSummary,

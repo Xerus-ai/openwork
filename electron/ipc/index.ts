@@ -23,3 +23,13 @@ export {
   initializeChatHandlerService,
   cleanupChatHandlerService,
 } from './chat-handlers.js';
+
+// TodoList handlers for progress tracking
+export {
+  createTodoListBroadcaster,
+  setCurrentRequestId,
+  getCurrentRequestId,
+  getTodoListBroadcaster,
+  initializeTodoListHandlers,
+  cleanupTodoListHandlers,
+} from './todolist-handlers.js';

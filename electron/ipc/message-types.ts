@@ -6,13 +6,21 @@
 // Local type definitions to avoid cross-project imports
 
 /**
+ * Status of a todo item.
+ */
+export type TodoStatus = 'pending' | 'in_progress' | 'completed' | 'blocked';
+
+/**
  * Todo item for progress tracking.
  */
 export interface TodoItem {
   id: string;
   content: string;
-  status: 'pending' | 'in_progress' | 'completed';
-  children?: TodoItem[];
+  status: TodoStatus;
+  createdAt: string;
+  updatedAt: string;
+  completedAt?: string;
+  blockedReason?: string;
 }
 
 /**
