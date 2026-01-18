@@ -30,7 +30,7 @@
 - [x] [023 - Add model selector dropdown (Sonnet 4.5, Opus 4.5)](docs/tasks/archive/023-model-selector/spec.md) (Effort: XS, Tier: mini)
 - [x] [024 - Implement workspace folder selector with browse dialog](docs/tasks/archive/024-workspace-selector/spec.md) (Effort: M, Tier: standard)
 - [x] [025 - Create ExecutionPane with terminal-like output display](docs/tasks/archive/025-executionpane-component/spec.md) (Effort: M, Tier: standard)
-- [ ] [026 - Add file preview capabilities to ExecutionPane](docs/tasks/active/026-file-preview/spec.md) (Effort: M, Tier: standard)
+- [x] [026 - Add file preview capabilities to ExecutionPane](docs/tasks/archive/026-file-preview/spec.md) (Effort: M, Tier: standard)
 - [ ] [027 - Implement file tree view for workspace](docs/tasks/active/027-file-tree-view/spec.md) (Effort: M, Tier: standard)
 - [ ] [028 - Create StatePane with progress section](docs/tasks/active/028-statepane-progress/spec.md) (Effort: M, Tier: standard)
 - [ ] [029 - Add artifacts section to StatePane](docs/tasks/active/029-statepane-artifacts/spec.md) (Effort: S, Tier: standard)
