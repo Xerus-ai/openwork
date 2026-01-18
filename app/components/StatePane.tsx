@@ -3,7 +3,9 @@ import { memo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useProgress } from '@/hooks/useProgress';
+import { useArtifacts } from '@/hooks/useArtifacts';
 import { ProgressSection } from './ProgressSection';
+import { ArtifactsSection } from './ArtifactsSection';
 
 /**
  * Props for the StatePane component.
@@ -11,28 +13,6 @@ import { ProgressSection } from './ProgressSection';
 export interface StatePaneProps {
   /** Additional CSS classes */
   className?: string;
-}
-
-/**
- * Placeholder component for artifacts section.
- * Will be replaced in task 029.
- */
-function ArtifactsPlaceholder(): ReactElement {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Artifacts</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="w-12 h-12 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center">
-          <span className="text-muted-foreground text-lg">+</span>
-        </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          Outputs created during the task land here.
-        </p>
-      </CardContent>
-    </Card>
-  );
 }
 
 /**
@@ -58,13 +38,20 @@ function ContextPlaceholder(): ReactElement {
  * StatePane displays the current state of the agent's work.
  * Contains three sections:
  * - Progress: TodoList visualization with checkmarks
- * - Artifacts: Created files and outputs (placeholder for now)
+ * - Artifacts: Created files and outputs
  * - Context: Active tools and files (placeholder for now)
  */
 export const StatePane = memo(function StatePane({
   className,
 }: StatePaneProps): ReactElement {
-  const { items, summary, currentItemId } = useProgress();
+  const { items, summary: progressSummary, currentItemId } = useProgress();
+  const {
+    artifacts,
+    summary: artifactsSummary,
+    selectedId,
+    selectArtifact,
+    clearArtifacts,
+  } = useArtifacts();
 
   const handleItemClick = useCallback((id: string): void => {
     // Future: could scroll to related content in ExecutionPane
@@ -72,18 +59,34 @@ export const StatePane = memo(function StatePane({
     console.log('Task clicked:', id);
   }, []);
 
+  const handleArtifactClick = useCallback((id: string): void => {
+    selectArtifact(id);
+    // Future: trigger preview in ExecutionPane
+    console.log('Artifact clicked:', id);
+  }, [selectArtifact]);
+
+  const handleClearArtifacts = useCallback((): void => {
+    clearArtifacts();
+  }, [clearArtifacts]);
+
   return (
     <div className={cn('h-full overflow-y-auto p-4 space-y-4', className)}>
       {/* Progress section */}
       <ProgressSection
         items={items}
-        summary={summary}
+        summary={progressSummary}
         currentItemId={currentItemId}
         onItemClick={handleItemClick}
       />
 
-      {/* Artifacts section placeholder */}
-      <ArtifactsPlaceholder />
+      {/* Artifacts section */}
+      <ArtifactsSection
+        artifacts={artifacts}
+        summary={artifactsSummary}
+        selectedId={selectedId}
+        onArtifactClick={handleArtifactClick}
+        onClearAll={handleClearArtifacts}
+      />
 
       {/* Context section placeholder */}
       <ContextPlaceholder />
