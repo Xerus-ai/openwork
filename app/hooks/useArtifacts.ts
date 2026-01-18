@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { AgentArtifactCreated, Artifact as IpcArtifact } from '@/lib/ipc-types';
 
 /**
  * Type of artifact file based on extension or content.
@@ -55,6 +56,8 @@ export interface ArtifactsState {
   artifacts: Artifact[];
   summary: ArtifactsSummary;
   selectedId: string | null;
+  isConnected: boolean;
+  lastUpdateRequestId: string | null;
 }
 
 /**
@@ -179,6 +182,28 @@ function extractFileName(filePath: string): string {
 }
 
 /**
+ * Transforms an IPC artifact to a local artifact.
+ */
+function transformIpcArtifact(ipcArtifact: IpcArtifact): Artifact {
+  const extension = extractExtension(ipcArtifact.path);
+  const type = detectArtifactType(extension);
+  const createdAt = ipcArtifact.createdAt instanceof Date
+    ? ipcArtifact.createdAt.toISOString()
+    : String(ipcArtifact.createdAt);
+
+  return {
+    id: ipcArtifact.id,
+    name: ipcArtifact.name,
+    path: ipcArtifact.path,
+    type,
+    extension,
+    size: ipcArtifact.size,
+    createdAt,
+    modifiedAt: createdAt,
+  };
+}
+
+/**
  * Calculates summary statistics from a list of artifacts.
  */
 function calculateSummary(artifacts: Artifact[]): ArtifactsSummary {
@@ -220,6 +245,41 @@ function calculateSummary(artifacts: Artifact[]): ArtifactsSummary {
 export function useArtifacts(): ArtifactsState & ArtifactsActions {
   const [artifacts, setArtifactsState] = useState<Artifact[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+  const [lastUpdateRequestId, setLastUpdateRequestId] = useState<string | null>(null);
+
+  /**
+   * Subscribe to artifact creation events from IPC on mount.
+   */
+  useEffect(() => {
+    const agentAPI = window.electronAgentAPI;
+
+    if (!agentAPI) {
+      console.warn('[useArtifacts] electronAgentAPI not available');
+      return;
+    }
+
+    setIsConnected(true);
+
+    // Handle artifact creation events from the agent
+    const unsubscribe = agentAPI.onArtifactCreated((event: AgentArtifactCreated) => {
+      console.log('[useArtifacts] Received artifact created event:', {
+        requestId: event.requestId,
+        artifactId: event.artifact.id,
+        name: event.artifact.name,
+        path: event.artifact.path,
+      });
+
+      const artifact = transformIpcArtifact(event.artifact);
+      setArtifactsState((prev) => [...prev, artifact]);
+      setLastUpdateRequestId(event.requestId);
+    });
+
+    return () => {
+      unsubscribe();
+      setIsConnected(false);
+    };
+  }, []);
 
   /**
    * Calculates summary statistics.
@@ -310,6 +370,8 @@ export function useArtifacts(): ArtifactsState & ArtifactsActions {
     artifacts,
     summary,
     selectedId,
+    isConnected,
+    lastUpdateRequestId,
     setArtifacts,
     addArtifact,
     updateArtifact,

@@ -33,3 +33,13 @@ export {
   initializeTodoListHandlers,
   cleanupTodoListHandlers,
 } from './todolist-handlers.js';
+
+// Artifact handlers for file creation tracking
+export {
+  createArtifactBroadcaster,
+  setArtifactRequestId,
+  getArtifactRequestId,
+  getArtifactBroadcaster,
+  initializeArtifactHandlers,
+  cleanupArtifactHandlers,
+} from './artifact-handlers.js';

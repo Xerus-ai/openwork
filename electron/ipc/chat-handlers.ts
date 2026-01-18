@@ -10,6 +10,11 @@ import {
   initializeTodoListHandlers,
   cleanupTodoListHandlers,
 } from './todolist-handlers.js';
+import {
+  setArtifactRequestId,
+  initializeArtifactHandlers,
+  cleanupArtifactHandlers,
+} from './artifact-handlers.js';
 
 /**
  * Configuration for the chat handler service.
@@ -128,6 +133,9 @@ export class ChatHandlerService {
       // Initialize TodoList handlers for progress tracking
       initializeTodoListHandlers();
 
+      // Initialize artifact handlers for file creation tracking
+      initializeArtifactHandlers();
+
       // Mark bridge as initialized
       this.bridge.setInitialized(true);
 
@@ -195,8 +203,9 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     this.isProcessing = true;
     this.abortController = new AbortController();
 
-    // Set current request ID for TodoList broadcasts
+    // Set current request ID for TodoList and artifact broadcasts
     setCurrentRequestId(requestId);
+    setArtifactRequestId(requestId);
 
     try {
       // Build message content
@@ -306,6 +315,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
       this.isProcessing = false;
       this.abortController = null;
       setCurrentRequestId(null);
+      setArtifactRequestId(null);
       this.bridge.markComplete();
     }
   }
@@ -379,6 +389,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     this.conversationHistory = [];
     this.systemPrompt = '';
     cleanupTodoListHandlers();
+    cleanupArtifactHandlers();
     console.log('[ChatHandlerService] Cleaned up');
   }
 }
