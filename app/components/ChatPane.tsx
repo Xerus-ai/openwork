@@ -9,6 +9,7 @@ import { QuickActions } from './QuickActions';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui';
 import type { AttachedFile } from '@/hooks/useFileUpload';
+import { ModelSelector } from './ModelSelector';
 
 /**
  * Props for the ChatPane component.
@@ -315,8 +316,8 @@ export const ChatPane = memo(function ChatPane({
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* Header */}
-      <ChatHeader messageCount={messages.length} />
+      {/* Header with model selector */}
+      <ChatHeader messageCount={messages.length} isStreaming={isStreaming} />
 
       {/* Message list with scroll container */}
       <div
@@ -345,13 +346,21 @@ export const ChatPane = memo(function ChatPane({
 });
 
 /**
- * Header for the chat pane showing title and message count.
+ * Props for the ChatHeader component.
  */
-function ChatHeader({ messageCount }: { messageCount: number }): ReactElement {
+interface ChatHeaderProps {
+  messageCount: number;
+  isStreaming: boolean;
+}
+
+/**
+ * Header for the chat pane showing model selector and message count.
+ */
+function ChatHeader({ messageCount, isStreaming }: ChatHeaderProps): ReactElement {
   return (
     <div className="flex-shrink-0 px-4 py-3 border-b">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Chat</h2>
+        <ModelSelector disabled={isStreaming} />
         {messageCount > 0 && (
           <span className="text-xs text-muted-foreground">
             {messageCount} message{messageCount !== 1 ? 's' : ''}
