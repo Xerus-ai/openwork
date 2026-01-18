@@ -4,7 +4,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { IpcChannels, ElectronAPI, PongPayload, WindowState } from './types.js';
+import { IpcChannels, ElectronAPI, PongPayload, WindowState, WorkspaceValidationResult } from './types.js';
 
 /**
  * Electron API exposed to renderer process via contextBridge.
@@ -48,6 +48,26 @@ const electronAPI: ElectronAPI = {
     // Return cleanup function
     return () => {
       ipcRenderer.removeListener('window:state-changed', handler);
+    };
+  },
+
+  // Workspace operations
+  selectWorkspaceFolder: async (): Promise<string | null> => {
+    return ipcRenderer.invoke(IpcChannels.WORKSPACE_SELECT_FOLDER);
+  },
+
+  validateWorkspace: async (path: string): Promise<WorkspaceValidationResult> => {
+    return ipcRenderer.invoke(IpcChannels.WORKSPACE_VALIDATE, path);
+  },
+
+  onWorkspaceChanged: (callback: (path: string | null) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, path: string | null) => {
+      callback(path);
+    };
+    ipcRenderer.on(IpcChannels.WORKSPACE_CHANGED, handler);
+
+    return () => {
+      ipcRenderer.removeListener(IpcChannels.WORKSPACE_CHANGED, handler);
     };
   },
 

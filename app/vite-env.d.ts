@@ -12,3 +12,65 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * Workspace validation result from Electron IPC.
+ */
+interface WorkspaceValidationResult {
+  valid: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
+/**
+ * Window state from Electron IPC.
+ */
+interface WindowState {
+  isMaximized: boolean;
+  isMinimized: boolean;
+  isFullScreen: boolean;
+}
+
+/**
+ * Pong payload from ping/pong test.
+ */
+interface PongPayload {
+  message: string;
+  receivedAt: number;
+}
+
+/**
+ * Electron API exposed via contextBridge in preload script.
+ */
+interface ElectronAPI {
+  // System
+  ping: (message: string) => Promise<PongPayload>;
+
+  // Window controls
+  minimizeWindow: () => void;
+  maximizeWindow: () => void;
+  closeWindow: () => void;
+  isWindowMaximized: () => Promise<boolean>;
+
+  // DevTools
+  toggleDevTools: () => void;
+
+  // Listeners
+  onWindowStateChange: (callback: (state: WindowState) => void) => () => void;
+
+  // Workspace operations
+  selectWorkspaceFolder: () => Promise<string | null>;
+  validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
+  onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
+
+  // Platform info
+  platform: NodeJS.Platform;
+  isDevelopment: boolean;
+}
+
+/**
+ * Extend the global Window interface for Electron API.
+ */
+interface Window {
+  electronAPI: ElectronAPI;
+}

@@ -28,7 +28,7 @@
 - [x] [021 - Add input box with file attachment support to ChatPane](docs/tasks/archive/021-input-with-attachments/spec.md) (Effort: S, Tier: standard)
 - [x] [022 - Create quick action tiles for common tasks](docs/tasks/archive/022-quick-action-tiles/spec.md) (Effort: S, Tier: standard)
 - [x] [023 - Add model selector dropdown (Sonnet 4.5, Opus 4.5)](docs/tasks/archive/023-model-selector/spec.md) (Effort: XS, Tier: mini)
-- [ ] [024 - Implement workspace folder selector with browse dialog](docs/tasks/active/024-workspace-selector/spec.md) (Effort: M, Tier: standard)
+- [x] [024 - Implement workspace folder selector with browse dialog](docs/tasks/archive/024-workspace-selector/spec.md) (Effort: M, Tier: standard)
 - [ ] [025 - Create ExecutionPane with terminal-like output display](docs/tasks/active/025-executionpane-component/spec.md) (Effort: M, Tier: standard)
 - [ ] [026 - Add file preview capabilities to ExecutionPane](docs/tasks/active/026-file-preview/spec.md) (Effort: M, Tier: standard)
 - [ ] [027 - Implement file tree view for workspace](docs/tasks/active/027-file-tree-view/spec.md) (Effort: M, Tier: standard)

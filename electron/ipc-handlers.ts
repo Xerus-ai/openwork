@@ -3,8 +3,10 @@
  * Registers all handlers for communication with renderer process.
  */
 
-import { ipcMain, BrowserWindow } from 'electron';
-import { IpcChannels, PongPayload } from './types.js';
+import { ipcMain, BrowserWindow, dialog } from 'electron';
+import fs from 'fs/promises';
+import { constants as fsConstants } from 'fs';
+import { IpcChannels, PongPayload, WorkspaceValidationResult } from './types.js';
 import { WindowStateManager } from './window-manager.js';
 
 /**
@@ -15,6 +17,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerSystemHandlers();
   registerWindowHandlers(getMainWindow);
   registerDevToolsHandlers(getMainWindow);
+  registerWorkspaceHandlers(getMainWindow);
 }
 
 /**
@@ -86,6 +89,107 @@ function registerDevToolsHandlers(getMainWindow: () => BrowserWindow | null): vo
 }
 
 /**
+ * Register workspace handlers for folder selection and validation.
+ */
+function registerWorkspaceHandlers(getMainWindow: () => BrowserWindow | null): void {
+  // Open folder picker dialog and return selected path
+  ipcMain.handle(
+    IpcChannels.WORKSPACE_SELECT_FOLDER,
+    async (): Promise<string | null> => {
+      const window = getMainWindow();
+      if (!window) {
+        console.error('[IPC] No main window available for folder dialog');
+        return null;
+      }
+
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Select Workspace Folder',
+        properties: ['openDirectory', 'createDirectory'],
+        buttonLabel: 'Select Folder',
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        console.log('[IPC] Folder selection canceled');
+        return null;
+      }
+
+      const selectedPath = result.filePaths[0] ?? null;
+      if (selectedPath) {
+        console.log(`[IPC] Folder selected: ${selectedPath}`);
+      }
+      return selectedPath;
+    }
+  );
+
+  // Validate workspace folder permissions
+  ipcMain.handle(
+    IpcChannels.WORKSPACE_VALIDATE,
+    async (_event, folderPath: string): Promise<WorkspaceValidationResult> => {
+      console.log(`[IPC] Validating workspace: ${folderPath}`);
+
+      if (!folderPath || folderPath.trim() === '') {
+        return {
+          valid: false,
+          error: 'Workspace path cannot be empty',
+          errorCode: 'PATH_EMPTY',
+        };
+      }
+
+      try {
+        // Check if path exists and is a directory
+        const stats = await fs.stat(folderPath);
+        if (!stats.isDirectory()) {
+          return {
+            valid: false,
+            error: 'Selected path is not a directory',
+            errorCode: 'NOT_A_DIRECTORY',
+          };
+        }
+
+        // Check read permission
+        try {
+          await fs.access(folderPath, fsConstants.R_OK);
+        } catch {
+          return {
+            valid: false,
+            error: 'No read permission on folder',
+            errorCode: 'NO_READ_PERMISSION',
+          };
+        }
+
+        // Check write permission
+        try {
+          await fs.access(folderPath, fsConstants.W_OK);
+        } catch {
+          return {
+            valid: false,
+            error: 'No write permission on folder',
+            errorCode: 'NO_WRITE_PERMISSION',
+          };
+        }
+
+        console.log(`[IPC] Workspace validation successful: ${folderPath}`);
+        return { valid: true };
+      } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        if (nodeError.code === 'ENOENT') {
+          return {
+            valid: false,
+            error: 'Folder does not exist',
+            errorCode: 'FOLDER_NOT_FOUND',
+          };
+        }
+        return {
+          valid: false,
+          error: `Failed to validate folder: ${nodeError.message}`,
+          errorCode: 'VALIDATION_ERROR',
+        };
+      }
+    }
+  );
+}
+
+/**
  * Remove all IPC handlers.
  * Call this during app cleanup.
  */
@@ -97,6 +201,8 @@ export function removeIpcHandlers(): void {
     IpcChannels.WINDOW_CLOSE,
     IpcChannels.WINDOW_IS_MAXIMIZED,
     IpcChannels.DEVTOOLS_TOGGLE,
+    IpcChannels.WORKSPACE_SELECT_FOLDER,
+    IpcChannels.WORKSPACE_VALIDATE,
   ];
 
   channels.forEach((channel) => {

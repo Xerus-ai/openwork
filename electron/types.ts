@@ -28,8 +28,9 @@ export const IpcChannels = {
   AGENT_ERROR: 'agent:error',
   AGENT_STREAM: 'agent:stream',
 
-  // Workspace operations (for future use)
-  WORKSPACE_SELECT: 'workspace:select',
+  // Workspace operations
+  WORKSPACE_SELECT_FOLDER: 'workspace:select-folder',
+  WORKSPACE_VALIDATE: 'workspace:validate',
   WORKSPACE_CHANGED: 'workspace:changed',
 
   // File operations (for future use)
@@ -77,6 +78,13 @@ export type IpcResult<T> =
   | { success: true; data: T }
   | { success: false; error: IpcError };
 
+// Workspace validation result
+export interface WorkspaceValidationResult {
+  valid: boolean;
+  error?: string;
+  errorCode?: string;
+}
+
 // API exposed to renderer via contextBridge
 export interface ElectronAPI {
   // System
@@ -93,6 +101,11 @@ export interface ElectronAPI {
 
   // Listeners for events from main process
   onWindowStateChange: (callback: (state: WindowState) => void) => () => void;
+
+  // Workspace operations
+  selectWorkspaceFolder: () => Promise<string | null>;
+  validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
+  onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
 
   // Platform info
   platform: NodeJS.Platform;
