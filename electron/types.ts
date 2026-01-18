@@ -33,7 +33,7 @@ export const IpcChannels = {
   WORKSPACE_VALIDATE: 'workspace:validate',
   WORKSPACE_CHANGED: 'workspace:changed',
 
-  // File operations (for future use)
+  // File operations
   FILE_READ: 'file:read',
   FILE_WRITE: 'file:write',
   FILE_LIST: 'file:list',
@@ -85,6 +85,23 @@ export interface WorkspaceValidationResult {
   errorCode?: string;
 }
 
+// File entry for directory listing
+export interface FileEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modifiedAt: number;
+  extension: string;
+}
+
+// File listing result
+export interface FileListResult {
+  success: boolean;
+  entries: FileEntry[];
+  error?: string;
+}
+
 // API exposed to renderer via contextBridge
 export interface ElectronAPI {
   // System
@@ -106,6 +123,9 @@ export interface ElectronAPI {
   selectWorkspaceFolder: () => Promise<string | null>;
   validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
   onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
+
+  // File operations
+  listFiles: (directoryPath: string) => Promise<FileListResult>;
 
   // Platform info
   platform: NodeJS.Platform;

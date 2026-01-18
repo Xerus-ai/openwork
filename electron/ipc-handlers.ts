@@ -6,7 +6,8 @@
 import { ipcMain, BrowserWindow, dialog } from 'electron';
 import fs from 'fs/promises';
 import { constants as fsConstants } from 'fs';
-import { IpcChannels, PongPayload, WorkspaceValidationResult } from './types.js';
+import path from 'path';
+import { IpcChannels, PongPayload, WorkspaceValidationResult, FileListResult, FileEntry } from './types.js';
 import { WindowStateManager } from './window-manager.js';
 
 /**
@@ -18,6 +19,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerWindowHandlers(getMainWindow);
   registerDevToolsHandlers(getMainWindow);
   registerWorkspaceHandlers(getMainWindow);
+  registerFileHandlers();
 }
 
 /**
@@ -190,6 +192,76 @@ function registerWorkspaceHandlers(getMainWindow: () => BrowserWindow | null): v
 }
 
 /**
+ * Register file operation handlers.
+ */
+function registerFileHandlers(): void {
+  // List files in a directory
+  ipcMain.handle(
+    IpcChannels.FILE_LIST,
+    async (_event, directoryPath: string): Promise<FileListResult> => {
+      if (!directoryPath || directoryPath.trim() === '') {
+        return {
+          success: false,
+          entries: [],
+          error: 'Directory path cannot be empty',
+        };
+      }
+
+      try {
+        const dirEntries = await fs.readdir(directoryPath, { withFileTypes: true });
+        const entries: FileEntry[] = [];
+
+        for (const dirent of dirEntries) {
+          // Skip hidden files and common ignored directories
+          if (dirent.name.startsWith('.') ||
+              dirent.name === 'node_modules' ||
+              dirent.name === '__pycache__') {
+            continue;
+          }
+
+          const fullPath = path.join(directoryPath, dirent.name);
+          try {
+            const stats = await fs.stat(fullPath);
+            const extension = dirent.isDirectory() ? '' : path.extname(dirent.name).toLowerCase();
+
+            entries.push({
+              name: dirent.name,
+              path: fullPath,
+              isDirectory: dirent.isDirectory(),
+              size: stats.size,
+              modifiedAt: stats.mtimeMs,
+              extension,
+            });
+          } catch {
+            // Skip files we cannot stat (permission issues, etc.)
+            continue;
+          }
+        }
+
+        // Sort: directories first, then by name
+        entries.sort((a, b) => {
+          if (a.isDirectory && !b.isDirectory) return -1;
+          if (!a.isDirectory && b.isDirectory) return 1;
+          return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+        });
+
+        return {
+          success: true,
+          entries,
+        };
+      } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        return {
+          success: false,
+          entries: [],
+          error: nodeError.message || 'Failed to read directory',
+        };
+      }
+    }
+  );
+}
+
+/**
  * Remove all IPC handlers.
  * Call this during app cleanup.
  */
@@ -203,6 +275,7 @@ export function removeIpcHandlers(): void {
     IpcChannels.DEVTOOLS_TOGGLE,
     IpcChannels.WORKSPACE_SELECT_FOLDER,
     IpcChannels.WORKSPACE_VALIDATE,
+    IpcChannels.FILE_LIST,
   ];
 
   channels.forEach((channel) => {

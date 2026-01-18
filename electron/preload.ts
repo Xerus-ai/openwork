@@ -4,7 +4,7 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { IpcChannels, ElectronAPI, PongPayload, WindowState, WorkspaceValidationResult } from './types.js';
+import { IpcChannels, ElectronAPI, PongPayload, WindowState, WorkspaceValidationResult, FileListResult } from './types.js';
 
 /**
  * Electron API exposed to renderer process via contextBridge.
@@ -69,6 +69,11 @@ const electronAPI: ElectronAPI = {
     return () => {
       ipcRenderer.removeListener(IpcChannels.WORKSPACE_CHANGED, handler);
     };
+  },
+
+  // File operations
+  listFiles: async (directoryPath: string): Promise<FileListResult> => {
+    return ipcRenderer.invoke(IpcChannels.FILE_LIST, directoryPath);
   },
 
   // Platform info

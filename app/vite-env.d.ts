@@ -40,6 +40,27 @@ interface PongPayload {
 }
 
 /**
+ * File entry from directory listing.
+ */
+interface FileEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+  size: number;
+  modifiedAt: number;
+  extension: string;
+}
+
+/**
+ * File listing result from Electron IPC.
+ */
+interface FileListResult {
+  success: boolean;
+  entries: FileEntry[];
+  error?: string;
+}
+
+/**
  * Electron API exposed via contextBridge in preload script.
  */
 interface ElectronAPI {
@@ -62,6 +83,9 @@ interface ElectronAPI {
   selectWorkspaceFolder: () => Promise<string | null>;
   validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
   onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
+
+  // File operations
+  listFiles: (directoryPath: string) => Promise<FileListResult>;
 
   // Platform info
   platform: NodeJS.Platform;
