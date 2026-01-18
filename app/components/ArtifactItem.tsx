@@ -1,5 +1,5 @@
 import type { ReactElement } from 'react';
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useState } from 'react';
 import {
   FileText,
   FileSpreadsheet,
@@ -9,9 +9,18 @@ import {
   Database,
   FileArchive,
   File,
+  Download,
+  Check,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui';
 import type { Artifact, ArtifactType } from '@/hooks/useArtifacts';
+
+/**
+ * Download status for tracking button state.
+ */
+type DownloadStatus = 'idle' | 'downloading' | 'success' | 'error';
 
 /**
  * Props for the ArtifactItem component.
@@ -23,6 +32,8 @@ export interface ArtifactItemProps {
   isSelected?: boolean;
   /** Callback when the artifact is clicked */
   onClick?: (id: string) => void;
+  /** Callback when download is requested */
+  onDownload?: (artifact: Artifact) => Promise<boolean>;
   /** Additional CSS classes */
   className?: string;
 }
@@ -128,14 +139,17 @@ function formatRelativeTime(dateString: string): string {
 
 /**
  * ArtifactItem displays a single artifact with icon, name, type badge,
- * size, and timestamp. Supports click to preview.
+ * size, and timestamp. Supports click to preview and download.
  */
 export const ArtifactItem = memo(function ArtifactItem({
   artifact,
   isSelected = false,
   onClick,
+  onDownload,
   className,
 }: ArtifactItemProps): ReactElement {
+  const [downloadStatus, setDownloadStatus] = useState<DownloadStatus>('idle');
+
   const handleClick = useCallback((): void => {
     onClick?.(artifact.id);
   }, [artifact.id, onClick]);
@@ -149,6 +163,44 @@ export const ArtifactItem = memo(function ArtifactItem({
     },
     [handleClick]
   );
+
+  const handleDownload = useCallback(
+    async (event: React.MouseEvent): Promise<void> => {
+      event.stopPropagation();
+
+      if (!onDownload || downloadStatus === 'downloading') {
+        return;
+      }
+
+      setDownloadStatus('downloading');
+
+      try {
+        const success = await onDownload(artifact);
+        if (success) {
+          setDownloadStatus('success');
+          // Reset to idle after showing success
+          setTimeout(() => setDownloadStatus('idle'), 2000);
+        } else {
+          setDownloadStatus('idle');
+        }
+      } catch {
+        setDownloadStatus('error');
+        setTimeout(() => setDownloadStatus('idle'), 2000);
+      }
+    },
+    [artifact, onDownload, downloadStatus]
+  );
+
+  const getDownloadIcon = (): ReactElement => {
+    switch (downloadStatus) {
+      case 'downloading':
+        return <Loader2 className="h-3.5 w-3.5 animate-spin" />;
+      case 'success':
+        return <Check className="h-3.5 w-3.5 text-green-500" />;
+      default:
+        return <Download className="h-3.5 w-3.5" />;
+    }
+  };
 
   return (
     <div
@@ -185,6 +237,23 @@ export const ArtifactItem = memo(function ArtifactItem({
           <span>{formatRelativeTime(artifact.createdAt)}</span>
         </div>
       </div>
+
+      {/* Download button */}
+      {onDownload && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            'h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity',
+            downloadStatus !== 'idle' && 'opacity-100'
+          )}
+          onClick={handleDownload}
+          disabled={downloadStatus === 'downloading'}
+          aria-label={`Download ${artifact.name}`}
+        >
+          {getDownloadIcon()}
+        </Button>
+      )}
     </div>
   );
 });

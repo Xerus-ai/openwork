@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { memo, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { useTodoList } from '@/hooks/useTodoList';
-import { useArtifacts } from '@/hooks/useArtifacts';
+import { useArtifacts, type Artifact } from '@/hooks/useArtifacts';
 import { useSessionContext } from '@/hooks/useSessionContext';
 import { ProgressSection } from './ProgressSection';
 import { ArtifactsSection } from './ArtifactsSection';
@@ -59,6 +59,68 @@ export const StatePane = memo(function StatePane({
     clearArtifacts();
   }, [clearArtifacts]);
 
+  const handleDownloadArtifact = useCallback(async (artifact: Artifact): Promise<boolean> => {
+    const api = window.electronAPI;
+    if (!api) {
+      console.warn('[StatePane] electronAPI not available for download');
+      return false;
+    }
+
+    try {
+      const result = await api.downloadArtifact({
+        sourcePath: artifact.path,
+        suggestedName: artifact.name,
+      });
+
+      if (result.cancelled) {
+        return false;
+      }
+
+      if (result.success) {
+        console.log('[StatePane] Artifact downloaded:', result.savedPath);
+        return true;
+      }
+
+      console.error('[StatePane] Download failed:', result.error);
+      return false;
+    } catch (error) {
+      console.error('[StatePane] Download error:', error);
+      return false;
+    }
+  }, []);
+
+  const handleDownloadAllArtifacts = useCallback(async (artifactList: Artifact[]): Promise<boolean> => {
+    const api = window.electronAPI;
+    if (!api) {
+      console.warn('[StatePane] electronAPI not available for download');
+      return false;
+    }
+
+    try {
+      const result = await api.downloadAllArtifacts({
+        artifacts: artifactList.map((artifact) => ({
+          sourcePath: artifact.path,
+          suggestedName: artifact.name,
+        })),
+      });
+
+      if (result.cancelled) {
+        return false;
+      }
+
+      if (result.success) {
+        console.log('[StatePane] All artifacts downloaded to:', result.savedDirectory);
+        return true;
+      }
+
+      console.error('[StatePane] Download all failed:', result.errors);
+      return result.savedCount > 0;
+    } catch (error) {
+      console.error('[StatePane] Download all error:', error);
+      return false;
+    }
+  }, []);
+
   const handleWorkspaceClick = useCallback((): void => {
     // Future: open workspace selector or show workspace details
     console.log('Workspace clicked:', workspacePath);
@@ -85,6 +147,8 @@ export const StatePane = memo(function StatePane({
         summary={artifactsSummary}
         selectedId={selectedId}
         onArtifactClick={handleArtifactClick}
+        onDownload={handleDownloadArtifact}
+        onDownloadAll={handleDownloadAllArtifacts}
         onClearAll={handleClearArtifacts}
       />
 

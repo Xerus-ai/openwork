@@ -7,19 +7,34 @@ import { ipcMain, BrowserWindow, dialog } from 'electron';
 import fs from 'fs/promises';
 import { constants as fsConstants } from 'fs';
 import path from 'path';
-import { IpcChannels, PongPayload, WorkspaceValidationResult, FileListResult, FileEntry } from './types.js';
+import {
+  IpcChannels,
+  PongPayload,
+  WorkspaceValidationResult,
+  FileListResult,
+  FileEntry,
+  DownloadRequest,
+  DownloadResult,
+  DownloadAllRequest,
+  DownloadAllResult,
+} from './types.js';
 import { WindowStateManager } from './window-manager.js';
+
+// Store reference to main window for download handlers
+let mainWindowRef: (() => BrowserWindow | null) | null = null;
 
 /**
  * Register all IPC handlers.
  * Call this once during app initialization.
  */
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
+  mainWindowRef = getMainWindow;
   registerSystemHandlers();
   registerWindowHandlers(getMainWindow);
   registerDevToolsHandlers(getMainWindow);
   registerWorkspaceHandlers(getMainWindow);
   registerFileHandlers();
+  registerDownloadHandlers();
 }
 
 /**
@@ -192,6 +207,29 @@ function registerWorkspaceHandlers(getMainWindow: () => BrowserWindow | null): v
 }
 
 /**
+ * Get file extension filter name for save dialog.
+ */
+function getFileFilterName(extension: string): string {
+  const filterNames: Record<string, string> = {
+    '.docx': 'Word Documents',
+    '.xlsx': 'Excel Spreadsheets',
+    '.pptx': 'PowerPoint Presentations',
+    '.pdf': 'PDF Documents',
+    '.txt': 'Text Files',
+    '.md': 'Markdown Files',
+    '.json': 'JSON Files',
+    '.csv': 'CSV Files',
+    '.png': 'PNG Images',
+    '.jpg': 'JPEG Images',
+    '.jpeg': 'JPEG Images',
+    '.gif': 'GIF Images',
+    '.svg': 'SVG Images',
+    '.zip': 'ZIP Archives',
+  };
+  return filterNames[extension.toLowerCase()] ?? 'Files';
+}
+
+/**
  * Register file operation handlers.
  */
 function registerFileHandlers(): void {
@@ -262,6 +300,179 @@ function registerFileHandlers(): void {
 }
 
 /**
+ * Register download handlers for artifact downloads.
+ */
+function registerDownloadHandlers(): void {
+  // Download a single artifact
+  ipcMain.handle(
+    IpcChannels.FILE_DOWNLOAD,
+    async (_event, request: DownloadRequest): Promise<DownloadResult> => {
+      console.log('[IPC] Download artifact request:', request.suggestedName);
+
+      const window = mainWindowRef?.();
+      if (!window) {
+        return {
+          success: false,
+          error: 'No main window available',
+        };
+      }
+
+      // Check source file exists
+      try {
+        await fs.access(request.sourcePath, fsConstants.R_OK);
+      } catch {
+        return {
+          success: false,
+          error: `Source file not found: ${request.sourcePath}`,
+        };
+      }
+
+      // Get file extension for filter
+      const ext = path.extname(request.suggestedName);
+      const filterName = getFileFilterName(ext);
+
+      // Show save dialog
+      const result = await dialog.showSaveDialog(window, {
+        title: 'Save Artifact',
+        defaultPath: request.suggestedName,
+        buttonLabel: 'Save',
+        filters: [
+          { name: filterName, extensions: [ext.replace('.', '')] },
+          { name: 'All Files', extensions: ['*'] },
+        ],
+      });
+
+      if (result.canceled || !result.filePath) {
+        console.log('[IPC] Download canceled by user');
+        return {
+          success: false,
+          cancelled: true,
+        };
+      }
+
+      // Copy file to destination
+      try {
+        await fs.copyFile(request.sourcePath, result.filePath);
+        console.log(`[IPC] Artifact saved to: ${result.filePath}`);
+        return {
+          success: true,
+          savedPath: result.filePath,
+        };
+      } catch (error) {
+        const nodeError = error as NodeJS.ErrnoException;
+        console.error(`[IPC] Failed to save artifact: ${nodeError.message}`);
+        return {
+          success: false,
+          error: `Failed to save file: ${nodeError.message}`,
+        };
+      }
+    }
+  );
+
+  // Download all artifacts to a folder
+  ipcMain.handle(
+    IpcChannels.FILE_DOWNLOAD_ALL,
+    async (_event, request: DownloadAllRequest): Promise<DownloadAllResult> => {
+      console.log('[IPC] Download all artifacts request:', request.artifacts.length, 'files');
+
+      const window = mainWindowRef?.();
+      if (!window) {
+        return {
+          success: false,
+          savedCount: 0,
+          failedCount: request.artifacts.length,
+          errors: ['No main window available'],
+        };
+      }
+
+      if (request.artifacts.length === 0) {
+        return {
+          success: false,
+          savedCount: 0,
+          failedCount: 0,
+          errors: ['No artifacts to download'],
+        };
+      }
+
+      // Show folder selection dialog
+      const result = await dialog.showOpenDialog(window, {
+        title: 'Select Folder for Artifacts',
+        properties: ['openDirectory', 'createDirectory'],
+        buttonLabel: 'Save Here',
+      });
+
+      if (result.canceled || result.filePaths.length === 0) {
+        console.log('[IPC] Download all canceled by user');
+        return {
+          success: false,
+          cancelled: true,
+          savedCount: 0,
+          failedCount: 0,
+        };
+      }
+
+      const targetDir = result.filePaths[0] ?? '';
+      if (!targetDir) {
+        return {
+          success: false,
+          savedCount: 0,
+          failedCount: request.artifacts.length,
+          errors: ['No target directory selected'],
+        };
+      }
+
+      // Copy all files to destination
+      let savedCount = 0;
+      let failedCount = 0;
+      const errors: string[] = [];
+
+      for (const artifact of request.artifacts) {
+        const targetPath = path.join(targetDir, artifact.suggestedName);
+
+        try {
+          // Check source exists
+          await fs.access(artifact.sourcePath, fsConstants.R_OK);
+
+          // Handle duplicate names by adding a number suffix
+          let finalPath = targetPath;
+          let counter = 1;
+          while (true) {
+            try {
+              await fs.access(finalPath);
+              // File exists, try with suffix
+              const ext = path.extname(targetPath);
+              const base = path.basename(targetPath, ext);
+              finalPath = path.join(targetDir, `${base} (${counter})${ext}`);
+              counter++;
+            } catch {
+              // File doesn't exist, we can use this path
+              break;
+            }
+          }
+
+          await fs.copyFile(artifact.sourcePath, finalPath);
+          savedCount++;
+        } catch (error) {
+          const nodeError = error as NodeJS.ErrnoException;
+          errors.push(`${artifact.suggestedName}: ${nodeError.message}`);
+          failedCount++;
+        }
+      }
+
+      console.log(`[IPC] Download all complete: ${savedCount} saved, ${failedCount} failed`);
+
+      return {
+        success: failedCount === 0,
+        savedDirectory: targetDir,
+        savedCount,
+        failedCount,
+        errors: errors.length > 0 ? errors : undefined,
+      };
+    }
+  );
+}
+
+/**
  * Remove all IPC handlers.
  * Call this during app cleanup.
  */
@@ -276,6 +487,8 @@ export function removeIpcHandlers(): void {
     IpcChannels.WORKSPACE_SELECT_FOLDER,
     IpcChannels.WORKSPACE_VALIDATE,
     IpcChannels.FILE_LIST,
+    IpcChannels.FILE_DOWNLOAD,
+    IpcChannels.FILE_DOWNLOAD_ALL,
   ];
 
   channels.forEach((channel) => {

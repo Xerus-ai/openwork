@@ -4,7 +4,18 @@
  */
 
 import { contextBridge, ipcRenderer } from 'electron';
-import { IpcChannels, ElectronAPI, PongPayload, WindowState, WorkspaceValidationResult, FileListResult } from './types.js';
+import {
+  IpcChannels,
+  ElectronAPI,
+  PongPayload,
+  WindowState,
+  WorkspaceValidationResult,
+  FileListResult,
+  DownloadRequest,
+  DownloadResult,
+  DownloadAllRequest,
+  DownloadAllResult,
+} from './types.js';
 import {
   AgentChannels,
   AgentInitRequest,
@@ -92,6 +103,14 @@ const electronAPI: ElectronAPI = {
   // File operations
   listFiles: async (directoryPath: string): Promise<FileListResult> => {
     return ipcRenderer.invoke(IpcChannels.FILE_LIST, directoryPath);
+  },
+
+  downloadArtifact: async (request: DownloadRequest): Promise<DownloadResult> => {
+    return ipcRenderer.invoke(IpcChannels.FILE_DOWNLOAD, request);
+  },
+
+  downloadAllArtifacts: async (request: DownloadAllRequest): Promise<DownloadAllResult> => {
+    return ipcRenderer.invoke(IpcChannels.FILE_DOWNLOAD_ALL, request);
   },
 
   // Platform info

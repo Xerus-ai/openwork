@@ -37,6 +37,8 @@ export const IpcChannels = {
   FILE_READ: 'file:read',
   FILE_WRITE: 'file:write',
   FILE_LIST: 'file:list',
+  FILE_DOWNLOAD: 'file:download',
+  FILE_DOWNLOAD_ALL: 'file:download-all',
 } as const;
 
 export type IpcChannel = typeof IpcChannels[keyof typeof IpcChannels];
@@ -102,6 +104,35 @@ export interface FileListResult {
   error?: string;
 }
 
+// Download request for a single artifact
+export interface DownloadRequest {
+  sourcePath: string;
+  suggestedName: string;
+}
+
+// Download result
+export interface DownloadResult {
+  success: boolean;
+  savedPath?: string;
+  error?: string;
+  cancelled?: boolean;
+}
+
+// Download all request
+export interface DownloadAllRequest {
+  artifacts: DownloadRequest[];
+}
+
+// Download all result
+export interface DownloadAllResult {
+  success: boolean;
+  savedDirectory?: string;
+  savedCount: number;
+  failedCount: number;
+  errors?: string[];
+  cancelled?: boolean;
+}
+
 // API exposed to renderer via contextBridge
 export interface ElectronAPI {
   // System
@@ -126,6 +157,8 @@ export interface ElectronAPI {
 
   // File operations
   listFiles: (directoryPath: string) => Promise<FileListResult>;
+  downloadArtifact: (request: DownloadRequest) => Promise<DownloadResult>;
+  downloadAllArtifacts: (request: DownloadAllRequest) => Promise<DownloadAllResult>;
 
   // Platform info
   platform: NodeJS.Platform;

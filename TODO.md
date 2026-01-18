@@ -43,7 +43,7 @@
 - [x] [033 - Wire up AskUserQuestion to UI with multi-choice widgets](docs/tasks/archive/033-askuserquestion-ui/spec.md) (Effort: M, Tier: standard)
 - [x] [034 - Connect TodoList to StatePane progress visualization](docs/tasks/archive/034-todolist-visualization/spec.md) (Effort: M, Tier: standard)
 - [x] [035 - Implement artifacts tracking and display in StatePane](docs/tasks/archive/035-artifacts-tracking/spec.md) (Effort: M, Tier: standard)
-- [ ] [036 - Add download buttons for artifacts](docs/tasks/active/036-artifact-downloads/spec.md) (Effort: S, Tier: standard)
+- [x] [036 - Add download buttons for artifacts](docs/tasks/archive/036-artifact-downloads/spec.md) (Effort: S, Tier: standard)
 - [ ] [037 - Connect file operations to ExecutionPane output](docs/tasks/active/037-file-ops-execution-view/spec.md) (Effort: S, Tier: standard)
 - [ ] [038 - Implement workspace folder persistence across sessions](docs/tasks/active/038-workspace-persistence/spec.md) (Effort: S, Tier: standard)
 - [ ] [039 - Add real-time skill loading indicators to context section](docs/tasks/active/039-skill-loading-indicators/spec.md) (Effort: S, Tier: mini)

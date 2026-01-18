@@ -1,10 +1,15 @@
 import type { ReactElement } from 'react';
-import { memo, useCallback, useMemo } from 'react';
-import { Package, Trash2 } from 'lucide-react';
+import { memo, useCallback, useMemo, useState } from 'react';
+import { Package, Trash2, Download, Loader2, Check } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, Button } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { Artifact, ArtifactsSummary } from '@/hooks/useArtifacts';
 import { ArtifactItem } from './ArtifactItem';
+
+/**
+ * Download all status for tracking button state.
+ */
+type DownloadAllStatus = 'idle' | 'downloading' | 'success' | 'error';
 
 /**
  * Props for the ArtifactsSection component.
@@ -18,6 +23,10 @@ export interface ArtifactsSectionProps {
   selectedId: string | null;
   /** Callback when an artifact is clicked */
   onArtifactClick?: (id: string) => void;
+  /** Callback to download a single artifact, returns success boolean */
+  onDownload?: (artifact: Artifact) => Promise<boolean>;
+  /** Callback to download all artifacts */
+  onDownloadAll?: (artifacts: Artifact[]) => Promise<boolean>;
   /** Callback to clear all artifacts */
   onClearAll?: () => void;
   /** Additional CSS classes */
@@ -115,6 +124,7 @@ function TypeSummaryBadges({ summary }: { summary: ArtifactsSummary }): ReactEle
  * - File size and timestamp display
  * - Type badges for quick identification
  * - Click to preview file
+ * - Download individual or all artifacts
  * - Clear all button
  * - Scrollable list for many artifacts
  */
@@ -123,9 +133,13 @@ export const ArtifactsSection = memo(function ArtifactsSection({
   summary,
   selectedId,
   onArtifactClick,
+  onDownload,
+  onDownloadAll,
   onClearAll,
   className,
 }: ArtifactsSectionProps): ReactElement {
+  const [downloadAllStatus, setDownloadAllStatus] = useState<DownloadAllStatus>('idle');
+
   /**
    * Sorts artifacts by creation time (newest first).
    */
@@ -146,6 +160,38 @@ export const ArtifactsSection = memo(function ArtifactsSection({
     onClearAll?.();
   }, [onClearAll]);
 
+  const handleDownloadAll = useCallback(async (): Promise<void> => {
+    if (!onDownloadAll || downloadAllStatus === 'downloading') {
+      return;
+    }
+
+    setDownloadAllStatus('downloading');
+
+    try {
+      const success = await onDownloadAll(artifacts);
+      if (success) {
+        setDownloadAllStatus('success');
+        setTimeout(() => setDownloadAllStatus('idle'), 2000);
+      } else {
+        setDownloadAllStatus('idle');
+      }
+    } catch {
+      setDownloadAllStatus('error');
+      setTimeout(() => setDownloadAllStatus('idle'), 2000);
+    }
+  }, [artifacts, onDownloadAll, downloadAllStatus]);
+
+  const getDownloadAllIcon = (): ReactElement => {
+    switch (downloadAllStatus) {
+      case 'downloading':
+        return <Loader2 className="h-3.5 w-3.5 animate-spin" />;
+      case 'success':
+        return <Check className="h-3.5 w-3.5 text-green-500" />;
+      default:
+        return <Download className="h-3.5 w-3.5" />;
+    }
+  };
+
   return (
     <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="pb-2">
@@ -159,6 +205,19 @@ export const ArtifactsSection = memo(function ArtifactsSection({
               <span className="text-xs font-normal text-muted-foreground">
                 {summary.total} file{summary.total !== 1 ? 's' : ''} ({formatTotalSize(summary.totalSize)})
               </span>
+              {onDownloadAll && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                  onClick={handleDownloadAll}
+                  disabled={downloadAllStatus === 'downloading'}
+                  aria-label="Download all artifacts"
+                  title="Download all"
+                >
+                  {getDownloadAllIcon()}
+                </Button>
+              )}
               {onClearAll && (
                 <Button
                   variant="ghost"
@@ -193,6 +252,7 @@ export const ArtifactsSection = memo(function ArtifactsSection({
                 artifact={artifact}
                 isSelected={artifact.id === selectedId}
                 onClick={handleArtifactClick}
+                onDownload={onDownload}
               />
             ))}
           </div>

@@ -61,6 +61,43 @@ interface FileListResult {
 }
 
 /**
+ * Download request for a single artifact.
+ */
+interface DownloadRequest {
+  sourcePath: string;
+  suggestedName: string;
+}
+
+/**
+ * Download result from Electron IPC.
+ */
+interface DownloadResult {
+  success: boolean;
+  savedPath?: string;
+  error?: string;
+  cancelled?: boolean;
+}
+
+/**
+ * Download all request for multiple artifacts.
+ */
+interface DownloadAllRequest {
+  artifacts: DownloadRequest[];
+}
+
+/**
+ * Download all result from Electron IPC.
+ */
+interface DownloadAllResult {
+  success: boolean;
+  savedDirectory?: string;
+  savedCount: number;
+  failedCount: number;
+  errors?: string[];
+  cancelled?: boolean;
+}
+
+/**
  * Electron API exposed via contextBridge in preload script.
  */
 interface ElectronAPI {
@@ -86,6 +123,8 @@ interface ElectronAPI {
 
   // File operations
   listFiles: (directoryPath: string) => Promise<FileListResult>;
+  downloadArtifact: (request: DownloadRequest) => Promise<DownloadResult>;
+  downloadAllArtifacts: (request: DownloadAllRequest) => Promise<DownloadAllResult>;
 
   // Platform info
   platform: NodeJS.Platform;
