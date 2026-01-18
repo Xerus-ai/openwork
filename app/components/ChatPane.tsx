@@ -4,8 +4,10 @@ import { cn } from '@/lib/utils';
 import { useChat, type ChatMessage, type ChatState, type ChatActions } from '@/hooks/useChat';
 import { Message } from './Message';
 import { StreamingMessage } from './StreamingMessage';
+import { ChatInput } from './ChatInput';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui';
+import type { AttachedFile } from '@/hooks/useFileUpload';
 
 /**
  * Props for the ChatPane component.
@@ -187,13 +189,14 @@ function EmptyState(): ReactElement {
  * - Streaming message support with cursor animation
  * - Auto-scroll to bottom on new messages
  * - Virtualized scrolling for long histories
+ * - Input with file attachment support
  * - Responsive layout
  */
 export const ChatPane = memo(function ChatPane({
   className,
 }: ChatPaneProps): ReactElement {
   const chatState = useChat();
-  const { messages, streamingMessageId, isStreaming } = chatState;
+  const { messages, streamingMessageId, isStreaming, addUserMessage } = chatState;
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -222,6 +225,34 @@ export const ChatPane = memo(function ChatPane({
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     setIsAtBottom(distanceFromBottom < SCROLL_THRESHOLD);
   }, []);
+
+  /**
+   * Handles sending a message from the input.
+   * Currently adds the user message to chat history.
+   * File attachments will be handled in task 041.
+   */
+  const handleSend = useCallback(
+    (message: string, attachments: AttachedFile[]): void => {
+      // Build message content
+      let content = message;
+
+      // Append attachment info to message for now
+      // Full attachment handling comes in task 041
+      if (attachments.length > 0) {
+        const attachmentNames = attachments.map((f) => f.name).join(', ');
+        if (content) {
+          content += `\n\n[Attachments: ${attachmentNames}]`;
+        } else {
+          content = `[Attachments: ${attachmentNames}]`;
+        }
+      }
+
+      if (content) {
+        addUserMessage(content);
+      }
+    },
+    [addUserMessage]
+  );
 
   // Auto-scroll to bottom when new messages arrive (if user is at bottom)
   useEffect(() => {
@@ -264,8 +295,12 @@ export const ChatPane = memo(function ChatPane({
         />
       </div>
 
-      {/* Input placeholder - will be replaced in task 021 */}
-      <InputPlaceholder />
+      {/* Chat input with file attachment support */}
+      <ChatInput
+        onSend={handleSend}
+        disabled={isStreaming}
+        placeholder="Type a message..."
+      />
     </div>
   );
 });
@@ -283,22 +318,6 @@ function ChatHeader({ messageCount }: { messageCount: number }): ReactElement {
             {messageCount} message{messageCount !== 1 ? 's' : ''}
           </span>
         )}
-      </div>
-    </div>
-  );
-}
-
-/**
- * Placeholder for the input area.
- * Will be replaced with full input component in task 021.
- */
-function InputPlaceholder(): ReactElement {
-  return (
-    <div className="flex-shrink-0 p-4 border-t">
-      <div className="flex items-center gap-2 px-4 py-3 rounded-lg border bg-muted/30">
-        <span className="text-sm text-muted-foreground flex-1">
-          Type a message... (Input coming in task 021)
-        </span>
       </div>
     </div>
   );
