@@ -16,6 +16,7 @@ import {
   removeIpcHandlers,
   setupWindowStateListeners,
 } from './ipc-handlers.js';
+import { registerAgentBridge, removeAgentBridge } from './ipc/agent-bridge.js';
 
 // ESM compatibility for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -77,6 +78,9 @@ async function initializeApp(): Promise<void> {
   // Register IPC handlers before creating window
   registerIpcHandlers(getMainWindow);
 
+  // Register agent bridge for agent communication
+  registerAgentBridge(getMainWindow);
+
   // Create the main window
   await createWindow();
 
@@ -88,6 +92,9 @@ async function initializeApp(): Promise<void> {
  */
 function handleShutdown(): void {
   console.log('[Main] Shutting down...');
+
+  // Remove agent bridge handlers
+  removeAgentBridge();
 
   // Remove IPC handlers
   removeIpcHandlers();

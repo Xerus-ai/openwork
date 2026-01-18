@@ -5,6 +5,24 @@
 
 import { contextBridge, ipcRenderer } from 'electron';
 import { IpcChannels, ElectronAPI, PongPayload, WindowState, WorkspaceValidationResult, FileListResult } from './types.js';
+import {
+  AgentChannels,
+  AgentInitRequest,
+  AgentInitResponse,
+  AgentStatusResponse,
+  AgentSendMessageRequest,
+  AgentMessageChunk,
+  AgentMessageComplete,
+  AgentToolUse,
+  AgentToolResult,
+  AgentQuestion,
+  AgentAnswer,
+  AgentTodoUpdate,
+  AgentArtifactCreated,
+  AgentSkillLoaded,
+  AgentError,
+  ElectronAgentAPI,
+} from './ipc/message-types.js';
 
 /**
  * Electron API exposed to renderer process via contextBridge.
@@ -81,8 +99,136 @@ const electronAPI: ElectronAPI = {
   isDevelopment: process.env['NODE_ENV'] === 'development',
 };
 
-// Expose the API to the renderer process
+/**
+ * Agent API exposed to renderer process via contextBridge.
+ * Handles all agent-related communication.
+ */
+const electronAgentAPI: ElectronAgentAPI = {
+  // Agent initialization
+  initAgent: async (request: AgentInitRequest): Promise<AgentInitResponse> => {
+    return ipcRenderer.invoke(AgentChannels.AGENT_INIT, request);
+  },
+
+  // Get agent status
+  getStatus: async (): Promise<AgentStatusResponse> => {
+    return ipcRenderer.invoke(AgentChannels.AGENT_STATUS);
+  },
+
+  // Send message to agent
+  sendMessage: async (request: AgentSendMessageRequest): Promise<{ requestId: string }> => {
+    return ipcRenderer.invoke(AgentChannels.AGENT_SEND_MESSAGE, request);
+  },
+
+  // Stop agent processing
+  stopAgent: async (): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke(AgentChannels.AGENT_STOP);
+  },
+
+  // Answer agent question
+  answerQuestion: async (answer: AgentAnswer): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke(AgentChannels.AGENT_ANSWER, answer);
+  },
+
+  // Message streaming events
+  onMessageChunk: (callback: (chunk: AgentMessageChunk) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, chunk: AgentMessageChunk) => {
+      callback(chunk);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_MESSAGE_CHUNK, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_MESSAGE_CHUNK, handler);
+    };
+  },
+
+  onMessageComplete: (callback: (message: AgentMessageComplete) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: AgentMessageComplete) => {
+      callback(message);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_MESSAGE_COMPLETE, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_MESSAGE_COMPLETE, handler);
+    };
+  },
+
+  // Tool events
+  onToolUse: (callback: (toolUse: AgentToolUse) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, toolUse: AgentToolUse) => {
+      callback(toolUse);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_TOOL_USE, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_TOOL_USE, handler);
+    };
+  },
+
+  onToolResult: (callback: (result: AgentToolResult) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, result: AgentToolResult) => {
+      callback(result);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_TOOL_RESULT, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_TOOL_RESULT, handler);
+    };
+  },
+
+  // Question event
+  onQuestion: (callback: (question: AgentQuestion) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, question: AgentQuestion) => {
+      callback(question);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_QUESTION, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_QUESTION, handler);
+    };
+  },
+
+  // State update events
+  onTodoUpdate: (callback: (update: AgentTodoUpdate) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, update: AgentTodoUpdate) => {
+      callback(update);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_TODO_UPDATE, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_TODO_UPDATE, handler);
+    };
+  },
+
+  onArtifactCreated: (callback: (artifact: AgentArtifactCreated) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, artifact: AgentArtifactCreated) => {
+      callback(artifact);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_ARTIFACT_CREATED, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_ARTIFACT_CREATED, handler);
+    };
+  },
+
+  onSkillLoaded: (callback: (skill: AgentSkillLoaded) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, skill: AgentSkillLoaded) => {
+      callback(skill);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_SKILL_LOADED, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_SKILL_LOADED, handler);
+    };
+  },
+
+  // Error events
+  onError: (callback: (error: AgentError) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, error: AgentError) => {
+      callback(error);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_ERROR, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_ERROR, handler);
+    };
+  },
+};
+
+// Expose the APIs to the renderer process
 contextBridge.exposeInMainWorld('electronAPI', electronAPI);
+contextBridge.exposeInMainWorld('electronAgentAPI', electronAgentAPI);
 
 // Log that preload script has executed
 console.log('[Preload] Electron API exposed to renderer');
+console.log('[Preload] Agent API exposed to renderer');
