@@ -53,7 +53,7 @@
 
 ## Phase 4: Document Skills
 
-- [ ] [043 - Integrate docx skill with docx-js workflow](docs/tasks/active/043-docx-skill-integration/spec.md) (Effort: M, Tier: standard)
+- [x] [043 - Integrate docx skill with docx-js workflow](docs/tasks/archive/043-docx-skill-integration/spec.md) (Effort: M, Tier: standard)
 - [ ] [044 - Integrate pptx skill with html2pptx workflow](docs/tasks/active/044-pptx-skill-integration/spec.md) (Effort: M, Tier: standard)
 - [ ] [045 - Integrate pdf skill for PDF generation](docs/tasks/active/045-pdf-skill-integration/spec.md) (Effort: M, Tier: standard)
 - [ ] [046 - Integrate xlsx skill for spreadsheet manipulation](docs/tasks/active/046-xlsx-skill-integration/spec.md) (Effort: M, Tier: standard)
