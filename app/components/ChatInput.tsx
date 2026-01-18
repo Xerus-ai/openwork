@@ -1,5 +1,5 @@
 import type { ReactElement, KeyboardEvent, DragEvent, ChangeEvent } from 'react';
-import { memo, useCallback, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Send, Paperclip, AlertCircle, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
@@ -14,6 +14,8 @@ export interface ChatInputProps {
   disabled?: boolean;
   placeholder?: string;
   className?: string;
+  /** Initial message to populate the input (used by quick actions) */
+  initialMessage?: string;
 }
 
 /**
@@ -31,9 +33,28 @@ export const ChatInput = memo(function ChatInput({
   disabled = false,
   placeholder = 'Type a message...',
   className,
+  initialMessage,
 }: ChatInputProps): ReactElement {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  /**
+   * Handles initial message from quick actions.
+   * Sets the message and focuses the textarea.
+   */
+  useEffect(() => {
+    if (initialMessage) {
+      setMessage(initialMessage);
+      // Focus and resize textarea after setting message
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.focus();
+        // Trigger resize
+        textarea.style.height = 'auto';
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 200)}px`;
+      }
+    }
+  }, [initialMessage]);
 
   const {
     attachedFiles,

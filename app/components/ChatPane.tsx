@@ -5,6 +5,7 @@ import { useChat, type ChatMessage, type ChatState, type ChatActions } from '@/h
 import { Message } from './Message';
 import { StreamingMessage } from './StreamingMessage';
 import { ChatInput } from './ChatInput';
+import { QuickActions } from './QuickActions';
 import { ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui';
 import type { AttachedFile } from '@/hooks/useFileUpload';
@@ -24,6 +25,7 @@ interface MessageListProps {
   streamingMessageId: string | null;
   onScrollToBottom: () => void;
   isAtBottom: boolean;
+  onActionSelect: (prompt: string) => void;
 }
 
 /**
@@ -51,6 +53,7 @@ const MessageList = memo(function MessageList({
   streamingMessageId,
   onScrollToBottom,
   isAtBottom,
+  onActionSelect,
 }: MessageListProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: messages.length });
@@ -127,7 +130,7 @@ const MessageList = memo(function MessageList({
 
       {/* Message list */}
       {visibleMessages.length === 0 ? (
-        <EmptyState />
+        <EmptyState onActionSelect={onActionSelect} />
       ) : (
         visibleMessages.map((message) => {
           const isStreaming = message.id === streamingMessageId;
@@ -167,17 +170,30 @@ const MessageList = memo(function MessageList({
 });
 
 /**
- * Empty state shown when there are no messages.
+ * Props for the EmptyState component.
  */
-function EmptyState(): ReactElement {
+interface EmptyStateProps {
+  onActionSelect: (prompt: string) => void;
+}
+
+/**
+ * Empty state shown when there are no messages.
+ * Displays a welcome message and quick action tiles.
+ */
+function EmptyState({ onActionSelect }: EmptyStateProps): ReactElement {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="text-4xl mb-4 text-muted-foreground">~</div>
-      <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-      <p className="text-sm text-muted-foreground max-w-sm">
-        Type a message below to start chatting with Claude.
-        You can ask questions, request tasks, or explore ideas together.
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+      <h2 className="text-2xl font-semibold mb-2">
+        Let's knock something off your list
+      </h2>
+      <p className="text-sm text-muted-foreground max-w-md mb-8">
+        Choose a quick action below or type a message to get started.
       </p>
+      <QuickActions
+        onActionSelect={onActionSelect}
+        actionCount={6}
+        className="mb-4"
+      />
     </div>
   );
 }
@@ -200,6 +216,26 @@ export const ChatPane = memo(function ChatPane({
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [selectedPrompt, setSelectedPrompt] = useState<string | undefined>(undefined);
+
+  /**
+   * Handles quick action selection by setting the input prompt.
+   * Uses a key to ensure React re-renders when the same action is clicked twice.
+   */
+  const handleActionSelect = useCallback((prompt: string): void => {
+    // Append a timestamp to force re-render if the same prompt is selected
+    setSelectedPrompt(`${prompt}__${Date.now()}`);
+  }, []);
+
+  /**
+   * Extracts the actual prompt text from the selected prompt (removes timestamp).
+   */
+  const getPromptText = useCallback((prompt: string | undefined): string | undefined => {
+    if (!prompt) return undefined;
+    const parts = prompt.split('__');
+    parts.pop(); // Remove timestamp
+    return parts.join('__');
+  }, []);
 
   /**
    * Scrolls to the bottom of the message list.
@@ -292,6 +328,7 @@ export const ChatPane = memo(function ChatPane({
           streamingMessageId={streamingMessageId}
           onScrollToBottom={scrollToBottom}
           isAtBottom={isAtBottom}
+          onActionSelect={handleActionSelect}
         />
       </div>
 
@@ -300,6 +337,8 @@ export const ChatPane = memo(function ChatPane({
         onSend={handleSend}
         disabled={isStreaming}
         placeholder="Type a message..."
+        initialMessage={getPromptText(selectedPrompt)}
+        key={selectedPrompt}
       />
     </div>
   );
