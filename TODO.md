@@ -24,7 +24,7 @@
 - [x] [017 - Set up React + Vite project with TypeScript](docs/tasks/archive/017-react-vite-setup/spec.md) (Effort: S, Tier: standard)
 - [x] [018 - Install and configure shadcn/ui components](docs/tasks/archive/018-shadcn-ui-setup/spec.md) (Effort: S, Tier: mini)
 - [x] [019 - Create three-pane layout structure](docs/tasks/archive/019-three-pane-layout/spec.md) (Effort: M, Tier: standard)
-- [ ] [020 - Implement ChatPane with message history and streaming](docs/tasks/active/020-chatpane-component/spec.md) (Effort: M, Tier: standard)
+- [x] [020 - Implement ChatPane with message history and streaming](docs/tasks/archive/020-chatpane-component/spec.md) (Effort: M, Tier: standard)
 - [ ] [021 - Add input box with file attachment support to ChatPane](docs/tasks/active/021-input-with-attachments/spec.md) (Effort: S, Tier: standard)
 - [ ] [022 - Create quick action tiles for common tasks](docs/tasks/active/022-quick-action-tiles/spec.md) (Effort: S, Tier: standard)
 - [ ] [023 - Add model selector dropdown (Sonnet 4.5, Opus 4.5)](docs/tasks/active/023-model-selector/spec.md) (Effort: XS, Tier: mini)
