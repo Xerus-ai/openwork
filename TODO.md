@@ -47,7 +47,7 @@
 - [x] [037 - Connect file operations to ExecutionPane output](docs/tasks/archive/037-file-ops-execution-view/spec.md) (Effort: S, Tier: standard)
 - [x] [038 - Implement workspace folder persistence across sessions](docs/tasks/archive/038-workspace-persistence/spec.md) (Effort: S, Tier: standard)
 - [x] [039 - Add real-time skill loading indicators to context section](docs/tasks/archive/039-skill-loading-indicators/spec.md) (Effort: S, Tier: mini)
-- [ ] [040 - Implement error handling and user-friendly error messages](docs/tasks/active/040-error-handling/spec.md) (Effort: M, Tier: standard)
+- [x] [040 - Implement error handling and user-friendly error messages](docs/tasks/archive/040-error-handling/spec.md) (Effort: M, Tier: standard)
 - [ ] [041 - Add file attachment upload to backend](docs/tasks/active/041-file-attachment-backend/spec.md) (Effort: M, Tier: standard)
 - [ ] [042 - Test end-to-end workflow with sample tasks](docs/tasks/active/042-e2e-workflow-test/spec.md) (Effort: M, Tier: standard)
 

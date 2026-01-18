@@ -18,6 +18,7 @@ import {
 } from './ipc-handlers.js';
 import { registerAgentBridge, removeAgentBridge } from './ipc/agent-bridge.js';
 import { initializeChatHandlerService, cleanupChatHandlerService } from './ipc/chat-handlers.js';
+import { initializeErrorHandler, cleanupErrorHandler } from './error-handler.js';
 
 // ESM compatibility for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -76,6 +77,13 @@ async function initializeApp(): Promise<void> {
   console.log(`[Main] Electron version: ${process.versions['electron']}`);
   console.log(`[Main] Node version: ${process.versions['node']}`);
 
+  // Initialize error handler first
+  initializeErrorHandler(getMainWindow, {
+    showDialogs: !isDevelopment, // Only show dialogs in production
+    dialogSeverityThreshold: 'critical',
+    logToConsole: true,
+  });
+
   // Register IPC handlers before creating window
   registerIpcHandlers(getMainWindow);
 
@@ -105,6 +113,9 @@ function handleShutdown(): void {
 
   // Remove IPC handlers
   removeIpcHandlers();
+
+  // Cleanup error handler
+  cleanupErrorHandler();
 
   // Close all windows
   if (mainWindow) {
@@ -177,11 +188,5 @@ app.on('web-contents-created', (_event, contents) => {
   });
 });
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('[Main] Uncaught exception:', error);
-});
-
-process.on('unhandledRejection', (reason) => {
-  console.error('[Main] Unhandled rejection:', reason);
-});
+// Note: Uncaught exception and unhandled rejection handlers are
+// registered by initializeErrorHandler() for centralized error handling.
