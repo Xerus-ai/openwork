@@ -15,6 +15,7 @@ import {
   DownloadResult,
   DownloadAllRequest,
   DownloadAllResult,
+  SavedWorkspaceData,
 } from './types.js';
 import {
   AgentChannels,
@@ -98,6 +99,18 @@ const electronAPI: ElectronAPI = {
     return () => {
       ipcRenderer.removeListener(IpcChannels.WORKSPACE_CHANGED, handler);
     };
+  },
+
+  getSavedWorkspace: async (): Promise<SavedWorkspaceData | null> => {
+    return ipcRenderer.invoke(IpcChannels.WORKSPACE_GET_SAVED);
+  },
+
+  saveWorkspace: async (path: string): Promise<void> => {
+    return ipcRenderer.invoke(IpcChannels.WORKSPACE_SAVE, path);
+  },
+
+  clearWorkspace: async (): Promise<void> => {
+    return ipcRenderer.invoke(IpcChannels.WORKSPACE_CLEAR);
   },
 
   // File operations

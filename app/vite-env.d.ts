@@ -23,6 +23,14 @@ interface WorkspaceValidationResult {
 }
 
 /**
+ * Saved workspace data from persistent storage.
+ */
+interface SavedWorkspaceData {
+  path: string;
+  savedAt: number;
+}
+
+/**
  * Window state from Electron IPC.
  */
 interface WindowState {
@@ -120,6 +128,9 @@ interface ElectronAPI {
   selectWorkspaceFolder: () => Promise<string | null>;
   validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
   onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
+  getSavedWorkspace: () => Promise<SavedWorkspaceData | null>;
+  saveWorkspace: (path: string) => Promise<void>;
+  clearWorkspace: () => Promise<void>;
 
   // File operations
   listFiles: (directoryPath: string) => Promise<FileListResult>;

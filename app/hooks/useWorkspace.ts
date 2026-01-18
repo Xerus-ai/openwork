@@ -10,6 +10,14 @@ export interface WorkspaceValidationResult {
 }
 
 /**
+ * Saved workspace data from persistent storage.
+ */
+export interface SavedWorkspaceData {
+  path: string;
+  savedAt: number;
+}
+
+/**
  * Workspace state returned by the useWorkspace hook.
  */
 export interface WorkspaceState {
@@ -21,6 +29,8 @@ export interface WorkspaceState {
   validationResult: WorkspaceValidationResult | null;
   /** Whether a folder picker dialog is currently open */
   isPickerOpen: boolean;
+  /** Whether the initial workspace is being loaded from storage */
+  isLoading: boolean;
 }
 
 /**
@@ -38,41 +48,6 @@ export interface WorkspaceActions {
 }
 
 /**
- * LocalStorage key for persisting workspace path.
- */
-const STORAGE_KEY = 'cowork-workspace-path';
-
-/**
- * Gets the stored workspace path from localStorage.
- */
-function getStoredWorkspacePath(): string | null {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored && stored.trim()) {
-      return stored;
-    }
-  } catch {
-    // localStorage may not be available
-  }
-  return null;
-}
-
-/**
- * Stores the workspace path in localStorage.
- */
-function storeWorkspacePath(path: string | null): void {
-  try {
-    if (path) {
-      localStorage.setItem(STORAGE_KEY, path);
-    } else {
-      localStorage.removeItem(STORAGE_KEY);
-    }
-  } catch {
-    // localStorage may not be available
-  }
-}
-
-/**
  * Checks if the Electron API is available (running in Electron context).
  */
 function isElectronAvailable(): boolean {
@@ -85,7 +60,8 @@ function isElectronAvailable(): boolean {
  * Features:
  * - Opens native folder picker dialog via Electron
  * - Validates workspace permissions (read/write)
- * - Persists selection to localStorage
+ * - Persists selection to Electron's app config (survives app restarts)
+ * - Validates stored workspace on app launch
  * - Provides loading and error states
  *
  * @returns Workspace state and actions
@@ -102,10 +78,11 @@ function isElectronAvailable(): boolean {
  * }
  */
 export function useWorkspace(): WorkspaceState & WorkspaceActions {
-  const [workspacePath, setWorkspacePathState] = useState<string | null>(getStoredWorkspacePath);
+  const [workspacePath, setWorkspacePathState] = useState<string | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [validationResult, setValidationResult] = useState<WorkspaceValidationResult | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   /**
    * Validates a workspace path by checking it exists and has proper permissions.
@@ -138,6 +115,38 @@ export function useWorkspace(): WorkspaceState & WorkspaceActions {
   }, []);
 
   /**
+   * Saves the workspace path to persistent storage.
+   */
+  const saveWorkspaceToStorage = useCallback(async (path: string): Promise<void> => {
+    if (!isElectronAvailable()) {
+      // In browser context, skip saving (development mode)
+      return;
+    }
+
+    try {
+      await window.electronAPI.saveWorkspace(path);
+    } catch (error) {
+      console.error('[useWorkspace] Failed to save workspace:', error);
+    }
+  }, []);
+
+  /**
+   * Clears the workspace from persistent storage.
+   */
+  const clearWorkspaceFromStorage = useCallback(async (): Promise<void> => {
+    if (!isElectronAvailable()) {
+      // In browser context, skip clearing (development mode)
+      return;
+    }
+
+    try {
+      await window.electronAPI.clearWorkspace();
+    } catch (error) {
+      console.error('[useWorkspace] Failed to clear workspace:', error);
+    }
+  }, []);
+
+  /**
    * Sets the workspace path and validates it.
    */
   const setWorkspacePath = useCallback(async (path: string): Promise<void> => {
@@ -150,12 +159,12 @@ export function useWorkspace(): WorkspaceState & WorkspaceActions {
 
       if (result.valid) {
         setWorkspacePathState(path);
-        storeWorkspacePath(path);
+        await saveWorkspaceToStorage(path);
       }
     } finally {
       setIsValidating(false);
     }
-  }, [validateWorkspace]);
+  }, [validateWorkspace, saveWorkspaceToStorage]);
 
   /**
    * Opens the native folder picker dialog.
@@ -192,8 +201,8 @@ export function useWorkspace(): WorkspaceState & WorkspaceActions {
   const clearWorkspace = useCallback((): void => {
     setWorkspacePathState(null);
     setValidationResult(null);
-    storeWorkspacePath(null);
-  }, []);
+    clearWorkspaceFromStorage();
+  }, [clearWorkspaceFromStorage]);
 
   /**
    * Re-validates the current workspace.
@@ -208,29 +217,48 @@ export function useWorkspace(): WorkspaceState & WorkspaceActions {
         // If validation fails, clear the workspace
         if (!result.valid) {
           setWorkspacePathState(null);
-          storeWorkspacePath(null);
+          await clearWorkspaceFromStorage();
         }
       } finally {
         setIsValidating(false);
       }
     }
-  }, [workspacePath, validateWorkspace]);
+  }, [workspacePath, validateWorkspace, clearWorkspaceFromStorage]);
 
-  // Validate stored workspace path on mount
+  // Load saved workspace from persistent storage on mount
   useEffect(() => {
-    const storedPath = getStoredWorkspacePath();
-    if (storedPath) {
-      // Validate the stored path asynchronously
-      validateWorkspace(storedPath).then((result) => {
-        setValidationResult(result);
-        if (!result.valid) {
-          // Clear invalid stored path
-          setWorkspacePathState(null);
-          storeWorkspacePath(null);
+    const loadSavedWorkspace = async (): Promise<void> => {
+      if (!isElectronAvailable()) {
+        // In browser context, skip loading
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const saved = await window.electronAPI.getSavedWorkspace();
+
+        if (saved && saved.path) {
+          // Validate the saved path
+          const result = await validateWorkspace(saved.path);
+          setValidationResult(result);
+
+          if (result.valid) {
+            setWorkspacePathState(saved.path);
+          } else {
+            // Clear invalid workspace from storage
+            console.log('[useWorkspace] Saved workspace invalid, clearing:', result.error);
+            await clearWorkspaceFromStorage();
+          }
         }
-      });
-    }
-  }, [validateWorkspace]);
+      } catch (error) {
+        console.error('[useWorkspace] Failed to load saved workspace:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadSavedWorkspace();
+  }, [validateWorkspace, clearWorkspaceFromStorage]);
 
   return {
     // State
@@ -238,6 +266,7 @@ export function useWorkspace(): WorkspaceState & WorkspaceActions {
     isValidating,
     validationResult,
     isPickerOpen,
+    isLoading,
     // Actions
     openFolderPicker,
     setWorkspacePath,

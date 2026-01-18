@@ -32,6 +32,9 @@ export const IpcChannels = {
   WORKSPACE_SELECT_FOLDER: 'workspace:select-folder',
   WORKSPACE_VALIDATE: 'workspace:validate',
   WORKSPACE_CHANGED: 'workspace:changed',
+  WORKSPACE_GET_SAVED: 'workspace:get-saved',
+  WORKSPACE_SAVE: 'workspace:save',
+  WORKSPACE_CLEAR: 'workspace:clear',
 
   // File operations
   FILE_READ: 'file:read',
@@ -85,6 +88,12 @@ export interface WorkspaceValidationResult {
   valid: boolean;
   error?: string;
   errorCode?: string;
+}
+
+// Saved workspace data
+export interface SavedWorkspaceData {
+  path: string;
+  savedAt: number;
 }
 
 // File entry for directory listing
@@ -154,6 +163,9 @@ export interface ElectronAPI {
   selectWorkspaceFolder: () => Promise<string | null>;
   validateWorkspace: (path: string) => Promise<WorkspaceValidationResult>;
   onWorkspaceChanged: (callback: (path: string | null) => void) => () => void;
+  getSavedWorkspace: () => Promise<SavedWorkspaceData | null>;
+  saveWorkspace: (path: string) => Promise<void>;
+  clearWorkspace: () => Promise<void>;
 
   // File operations
   listFiles: (directoryPath: string) => Promise<FileListResult>;

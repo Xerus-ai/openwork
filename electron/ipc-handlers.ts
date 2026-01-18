@@ -17,8 +17,15 @@ import {
   DownloadResult,
   DownloadAllRequest,
   DownloadAllResult,
+  SavedWorkspaceData,
 } from './types.js';
 import { WindowStateManager } from './window-manager.js';
+import {
+  getSavedWorkspace,
+  saveWorkspace,
+  clearSavedWorkspace,
+  validateWorkspacePath,
+} from './config/index.js';
 
 // Store reference to main window for download handlers
 let mainWindowRef: (() => BrowserWindow | null) | null = null;
@@ -143,65 +150,39 @@ function registerWorkspaceHandlers(getMainWindow: () => BrowserWindow | null): v
     IpcChannels.WORKSPACE_VALIDATE,
     async (_event, folderPath: string): Promise<WorkspaceValidationResult> => {
       console.log(`[IPC] Validating workspace: ${folderPath}`);
+      return validateWorkspacePath(folderPath);
+    }
+  );
 
-      if (!folderPath || folderPath.trim() === '') {
-        return {
-          valid: false,
-          error: 'Workspace path cannot be empty',
-          errorCode: 'PATH_EMPTY',
-        };
+  // Get saved workspace from persistent storage
+  ipcMain.handle(
+    IpcChannels.WORKSPACE_GET_SAVED,
+    async (): Promise<SavedWorkspaceData | null> => {
+      const saved = getSavedWorkspace();
+      if (saved) {
+        console.log(`[IPC] Retrieved saved workspace: ${saved.path}`);
+        return saved;
       }
+      console.log('[IPC] No saved workspace found');
+      return null;
+    }
+  );
 
-      try {
-        // Check if path exists and is a directory
-        const stats = await fs.stat(folderPath);
-        if (!stats.isDirectory()) {
-          return {
-            valid: false,
-            error: 'Selected path is not a directory',
-            errorCode: 'NOT_A_DIRECTORY',
-          };
-        }
+  // Save workspace to persistent storage
+  ipcMain.handle(
+    IpcChannels.WORKSPACE_SAVE,
+    async (_event, workspacePath: string): Promise<void> => {
+      console.log(`[IPC] Saving workspace: ${workspacePath}`);
+      saveWorkspace(workspacePath);
+    }
+  );
 
-        // Check read permission
-        try {
-          await fs.access(folderPath, fsConstants.R_OK);
-        } catch {
-          return {
-            valid: false,
-            error: 'No read permission on folder',
-            errorCode: 'NO_READ_PERMISSION',
-          };
-        }
-
-        // Check write permission
-        try {
-          await fs.access(folderPath, fsConstants.W_OK);
-        } catch {
-          return {
-            valid: false,
-            error: 'No write permission on folder',
-            errorCode: 'NO_WRITE_PERMISSION',
-          };
-        }
-
-        console.log(`[IPC] Workspace validation successful: ${folderPath}`);
-        return { valid: true };
-      } catch (error) {
-        const nodeError = error as NodeJS.ErrnoException;
-        if (nodeError.code === 'ENOENT') {
-          return {
-            valid: false,
-            error: 'Folder does not exist',
-            errorCode: 'FOLDER_NOT_FOUND',
-          };
-        }
-        return {
-          valid: false,
-          error: `Failed to validate folder: ${nodeError.message}`,
-          errorCode: 'VALIDATION_ERROR',
-        };
-      }
+  // Clear saved workspace from persistent storage
+  ipcMain.handle(
+    IpcChannels.WORKSPACE_CLEAR,
+    async (): Promise<void> => {
+      console.log('[IPC] Clearing saved workspace');
+      clearSavedWorkspace();
     }
   );
 }
@@ -486,6 +467,9 @@ export function removeIpcHandlers(): void {
     IpcChannels.DEVTOOLS_TOGGLE,
     IpcChannels.WORKSPACE_SELECT_FOLDER,
     IpcChannels.WORKSPACE_VALIDATE,
+    IpcChannels.WORKSPACE_GET_SAVED,
+    IpcChannels.WORKSPACE_SAVE,
+    IpcChannels.WORKSPACE_CLEAR,
     IpcChannels.FILE_LIST,
     IpcChannels.FILE_DOWNLOAD,
     IpcChannels.FILE_DOWNLOAD_ALL,
