@@ -1,11 +1,12 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { useProgress } from '@/hooks/useProgress';
 import { useArtifacts } from '@/hooks/useArtifacts';
+import { useSessionContext } from '@/hooks/useSessionContext';
 import { ProgressSection } from './ProgressSection';
 import { ArtifactsSection } from './ArtifactsSection';
+import { ContextSection } from './ContextSection';
 
 /**
  * Props for the StatePane component.
@@ -15,31 +16,13 @@ export interface StatePaneProps {
   className?: string;
 }
 
-/**
- * Placeholder component for context section.
- * Will be replaced in task 030.
- */
-function ContextPlaceholder(): ReactElement {
-  return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="text-sm">Context</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <p className="text-xs text-muted-foreground">
-          Track the tools and files in use as Claude works.
-        </p>
-      </CardContent>
-    </Card>
-  );
-}
 
 /**
  * StatePane displays the current state of the agent's work.
  * Contains three sections:
  * - Progress: TodoList visualization with checkmarks
  * - Artifacts: Created files and outputs
- * - Context: Active tools and files (placeholder for now)
+ * - Context: Workspace, loaded skills, and session metadata
  */
 export const StatePane = memo(function StatePane({
   className,
@@ -52,6 +35,13 @@ export const StatePane = memo(function StatePane({
     selectArtifact,
     clearArtifacts,
   } = useArtifacts();
+  const {
+    workspacePath,
+    skills,
+    session,
+    mcpConnectors,
+    summary: contextSummary,
+  } = useSessionContext();
 
   const handleItemClick = useCallback((id: string): void => {
     // Future: could scroll to related content in ExecutionPane
@@ -68,6 +58,16 @@ export const StatePane = memo(function StatePane({
   const handleClearArtifacts = useCallback((): void => {
     clearArtifacts();
   }, [clearArtifacts]);
+
+  const handleWorkspaceClick = useCallback((): void => {
+    // Future: open workspace selector or show workspace details
+    console.log('Workspace clicked:', workspacePath);
+  }, [workspacePath]);
+
+  const handleSkillClick = useCallback((id: string): void => {
+    // Future: show skill details or documentation
+    console.log('Skill clicked:', id);
+  }, []);
 
   return (
     <div className={cn('h-full overflow-y-auto p-4 space-y-4', className)}>
@@ -88,8 +88,16 @@ export const StatePane = memo(function StatePane({
         onClearAll={handleClearArtifacts}
       />
 
-      {/* Context section placeholder */}
-      <ContextPlaceholder />
+      {/* Context section */}
+      <ContextSection
+        workspacePath={workspacePath}
+        skills={skills}
+        session={session}
+        mcpConnectors={mcpConnectors}
+        summary={contextSummary}
+        onWorkspaceClick={handleWorkspaceClick}
+        onSkillClick={handleSkillClick}
+      />
     </div>
   );
 });
