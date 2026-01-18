@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { ExecutionEntry, ExecutionOutputType, ExecutionStatus } from '@/hooks/useExecution';
-import { Terminal, CheckCircle, XCircle, Info, FileText, Loader } from 'lucide-react';
+import { Terminal, CheckCircle, XCircle, Info, FileText, Loader, Globe, Wrench } from 'lucide-react';
 
 /**
  * Props for the ExecutionOutput component.
@@ -47,6 +47,16 @@ function getOutputIcon(
       return <Info className="w-4 h-4 text-blue-500" />;
     case 'file':
       return <FileText className="w-4 h-4 text-amber-500" />;
+    case 'web':
+      if (status === 'success') {
+        return <Globe className="w-4 h-4 text-purple-500" />;
+      }
+      return <XCircle className="w-4 h-4 text-red-500" />;
+    case 'tool':
+      if (status === 'success') {
+        return <Wrench className="w-4 h-4 text-cyan-500" />;
+      }
+      return <XCircle className="w-4 h-4 text-red-500" />;
     default:
       return <Terminal className="w-4 h-4 text-muted-foreground" />;
   }
@@ -60,6 +70,10 @@ function getOutputBackground(type: ExecutionOutputType, status: ExecutionStatus)
     return 'bg-blue-950/20 border-blue-900/30';
   }
 
+  if (status === 'error') {
+    return 'bg-red-950/20 border-red-900/30';
+  }
+
   switch (type) {
     case 'error':
       return 'bg-red-950/20 border-red-900/30';
@@ -68,10 +82,11 @@ function getOutputBackground(type: ExecutionOutputType, status: ExecutionStatus)
     case 'file':
       return 'bg-amber-950/20 border-amber-900/30';
     case 'command':
-      if (status === 'error') {
-        return 'bg-red-950/20 border-red-900/30';
-      }
       return 'bg-green-950/20 border-green-900/30';
+    case 'web':
+      return 'bg-purple-950/20 border-purple-900/30';
+    case 'tool':
+      return 'bg-cyan-950/20 border-cyan-900/30';
     default:
       return 'bg-muted/30 border-border';
   }
@@ -89,6 +104,12 @@ function getOutputTextColor(type: ExecutionOutputType, status: ExecutionStatus):
   }
   if (type === 'file') {
     return 'text-amber-400';
+  }
+  if (type === 'web') {
+    return 'text-purple-400';
+  }
+  if (type === 'tool') {
+    return 'text-cyan-400';
   }
   return 'text-foreground';
 }

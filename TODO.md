@@ -44,7 +44,7 @@
 - [x] [034 - Connect TodoList to StatePane progress visualization](docs/tasks/archive/034-todolist-visualization/spec.md) (Effort: M, Tier: standard)
 - [x] [035 - Implement artifacts tracking and display in StatePane](docs/tasks/archive/035-artifacts-tracking/spec.md) (Effort: M, Tier: standard)
 - [x] [036 - Add download buttons for artifacts](docs/tasks/archive/036-artifact-downloads/spec.md) (Effort: S, Tier: standard)
-- [ ] [037 - Connect file operations to ExecutionPane output](docs/tasks/active/037-file-ops-execution-view/spec.md) (Effort: S, Tier: standard)
+- [x] [037 - Connect file operations to ExecutionPane output](docs/tasks/archive/037-file-ops-execution-view/spec.md) (Effort: S, Tier: standard)
 - [ ] [038 - Implement workspace folder persistence across sessions](docs/tasks/active/038-workspace-persistence/spec.md) (Effort: S, Tier: standard)
 - [ ] [039 - Add real-time skill loading indicators to context section](docs/tasks/active/039-skill-loading-indicators/spec.md) (Effort: S, Tier: mini)
 - [ ] [040 - Implement error handling and user-friendly error messages](docs/tasks/active/040-error-handling/spec.md) (Effort: M, Tier: standard)

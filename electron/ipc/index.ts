@@ -43,3 +43,17 @@ export {
   initializeArtifactHandlers,
   cleanupArtifactHandlers,
 } from './artifact-handlers.js';
+
+// Execution handlers for tool event broadcasting
+export {
+  setExecutionRequestId,
+  getExecutionRequestId,
+  broadcastToolUse,
+  broadcastToolResult,
+  getToolCategory,
+  formatToolInputForDisplay,
+  formatToolOutputForDisplay,
+  initializeExecutionHandlers,
+  cleanupExecutionHandlers,
+  TOOL_CATEGORIES,
+} from './execution-handlers.js';
