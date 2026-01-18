@@ -1,74 +1,8 @@
 import type { ReactElement } from 'react';
 import { Layout } from '@/components/Layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui';
-
-/**
- * Placeholder component for the Chat pane.
- * Will be replaced with ChatPane component in task 020.
- */
-function ChatPanePlaceholder(): ReactElement {
-  return (
-    <div className="h-full p-4 flex flex-col">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold">Chat</h2>
-        <p className="text-sm text-muted-foreground">
-          Message history and input will appear here
-        </p>
-      </div>
-
-      <div className="flex-1 overflow-auto space-y-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Quick Actions</CardTitle>
-            <CardDescription className="text-xs">
-              Common tasks (placeholder)
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-2">
-            {['Create a file', 'Crunch data', 'Organize files', 'Research topic'].map(
-              (action) => (
-                <div
-                  key={action}
-                  className="p-3 rounded-lg border bg-card hover:bg-accent cursor-pointer transition-colors text-sm"
-                >
-                  {action}
-                </div>
-              )
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Input area placeholder */}
-      <div className="mt-4 p-3 rounded-lg border bg-muted/30">
-        <div className="text-sm text-muted-foreground">
-          Type a task here or use / for more tools
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Placeholder component for the Execution pane.
- * Will be replaced with ExecutionPane component in task 025.
- */
-function ExecutionPanePlaceholder(): ReactElement {
-  return (
-    <div className="h-full p-4 flex flex-col items-center justify-center">
-      <div className="text-center max-w-md">
-        <div className="text-6xl mb-4">~</div>
-        <h2 className="text-xl font-semibold mb-2">
-          Let's knock something off your list
-        </h2>
-        <p className="text-muted-foreground">
-          Select a quick action or type a task to get started.
-          Execution output and file previews will appear here.
-        </p>
-      </div>
-    </div>
-  );
-}
+import { ChatPane } from '@/components/ChatPane';
+import { ExecutionPane } from '@/components/ExecutionPane';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 
 /**
  * Placeholder component for the State pane.
@@ -132,8 +66,8 @@ function App(): ReactElement {
   return (
     <div className="h-screen w-screen overflow-hidden">
       <Layout
-        chatPane={<ChatPanePlaceholder />}
-        executionPane={<ExecutionPanePlaceholder />}
+        chatPane={<ChatPane />}
+        executionPane={<ExecutionPane />}
         statePane={<StatePanePlaceholder />}
       />
     </div>
