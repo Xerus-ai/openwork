@@ -303,12 +303,12 @@ export const ChatPane = memo(function ChatPane({
 
   /**
    * Converts AttachedFile to FileAttachment format for IPC.
-   * Note: In browser context, File objects don't have path. We use name as identifier.
+   * In Electron, File objects have a path property from file dialogs.
    */
   const convertAttachments = useCallback((files: AttachedFile[]): FileAttachment[] => {
     return files.map((file) => ({
       name: file.name,
-      path: file.name, // Browser File objects don't have path, use name
+      path: file.filePath || file.name, // Use actual file path if available
       mimeType: file.type,
       size: file.size,
     }));

@@ -51,6 +51,14 @@ const ALLOWED_EXTENSIONS = [
 ];
 
 /**
+ * Extended File interface for Electron.
+ * In Electron, files selected via file dialogs or drag-and-drop have a path property.
+ */
+interface ElectronFile extends File {
+  path?: string;
+}
+
+/**
  * Represents an attached file with metadata.
  */
 export interface AttachedFile {
@@ -60,6 +68,8 @@ export interface AttachedFile {
   size: number;
   type: string;
   preview?: string;
+  /** Full file path (available in Electron environment) */
+  filePath?: string;
 }
 
 /**
@@ -197,6 +207,8 @@ export function useFileUpload(): UseFileUploadResult {
         newErrors.push({ fileName: file.name, error });
       } else {
         const preview = createImagePreview(file);
+        // In Electron, File objects from file dialogs have a path property
+        const electronFile = file as ElectronFile;
         newFiles.push({
           id: generateFileId(),
           file,
@@ -204,6 +216,7 @@ export function useFileUpload(): UseFileUploadResult {
           size: file.size,
           type: file.type || 'application/octet-stream',
           preview,
+          filePath: electronFile.path,
         });
       }
     }

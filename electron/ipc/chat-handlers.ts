@@ -15,6 +15,10 @@ import {
   initializeArtifactHandlers,
   cleanupArtifactHandlers,
 } from './artifact-handlers.js';
+import {
+  processAttachments,
+  type FileAttachment,
+} from '../attachments/index.js';
 
 /**
  * Configuration for the chat handler service.
@@ -208,13 +212,21 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     setArtifactRequestId(requestId);
 
     try {
-      // Build message content
+      // Build message content with processed attachments
       let messageContent = content;
+
       if (attachments && attachments.length > 0) {
-        const attachmentInfo = attachments
-          .map((a) => `- ${a.name} (${a.mimeType}, ${this.formatBytes(a.size)})`)
-          .join('\n');
-        messageContent += `\n\nAttached files:\n${attachmentInfo}`;
+        console.log('[ChatHandlerService] Processing attachments...');
+        const result = await processAttachments(attachments as FileAttachment[]);
+
+        if (result.errors.length > 0) {
+          console.warn('[ChatHandlerService] Attachment processing warnings:', result.errors);
+        }
+
+        // Append the context text from attachments
+        if (result.contextText) {
+          messageContent += result.contextText;
+        }
       }
 
       // Add to conversation history
@@ -345,17 +357,6 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     console.log('[ChatHandlerService] Received answer:', data);
     // Question handling is managed by the bridge's promise resolution
     // This is here for any additional processing if needed
-  }
-
-  /**
-   * Format bytes to human-readable string.
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    const k = 1024;
-    const sizes = ['B', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
 
   /**
