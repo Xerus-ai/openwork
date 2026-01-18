@@ -1,15 +1,22 @@
 import type { ReactElement } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { useChat, type ChatMessage, type ChatState, type ChatActions } from '@/hooks/useChat';
+import {
+  useAgentChat,
+  type AgentChatState,
+  type AgentChatActions,
+  type ChatMessage,
+} from '@/hooks/useAgentChat';
+import { useWorkspace } from '@/hooks/useWorkspace';
 import { Message } from './Message';
 import { StreamingMessage } from './StreamingMessage';
 import { ChatInput } from './ChatInput';
 import { QuickActions } from './QuickActions';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import type { AttachedFile } from '@/hooks/useFileUpload';
 import { ModelSelector } from './ModelSelector';
+import type { FileAttachment } from '@/lib/ipc-types';
 
 /**
  * Props for the ChatPane component.
@@ -207,17 +214,41 @@ function EmptyState({ onActionSelect }: EmptyStateProps): ReactElement {
  * - Auto-scroll to bottom on new messages
  * - Virtualized scrolling for long histories
  * - Input with file attachment support
+ * - Agent backend integration with IPC
+ * - Connection state management
  * - Responsive layout
  */
 export const ChatPane = memo(function ChatPane({
   className,
 }: ChatPaneProps): ReactElement {
-  const chatState = useChat();
-  const { messages, streamingMessageId, isStreaming, addUserMessage } = chatState;
+  const agentChat = useAgentChat();
+  const {
+    messages,
+    streamingMessageId,
+    isStreaming,
+    connectionState,
+    isAgentInitialized,
+    lastError,
+    sendMessage,
+    initializeAgent,
+    stopAgent,
+    clearError,
+  } = agentChat;
+
+  const { workspacePath, validationResult } = useWorkspace();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [selectedPrompt, setSelectedPrompt] = useState<string | undefined>(undefined);
+
+  /**
+   * Auto-initialize agent when workspace is ready.
+   */
+  useEffect(() => {
+    if (workspacePath && validationResult?.valid && !isAgentInitialized && connectionState === 'disconnected') {
+      initializeAgent();
+    }
+  }, [workspacePath, validationResult, isAgentInitialized, connectionState, initializeAgent]);
 
   /**
    * Handles quick action selection by setting the input prompt.
@@ -264,32 +295,39 @@ export const ChatPane = memo(function ChatPane({
   }, []);
 
   /**
+   * Converts AttachedFile to FileAttachment format for IPC.
+   */
+  const convertAttachments = useCallback((files: AttachedFile[]): FileAttachment[] => {
+    return files.map((file) => ({
+      name: file.name,
+      path: file.path,
+      mimeType: file.type,
+      size: file.size,
+    }));
+  }, []);
+
+  /**
    * Handles sending a message from the input.
-   * Currently adds the user message to chat history.
-   * File attachments will be handled in task 041.
+   * Sends to agent backend with file attachments.
    */
   const handleSend = useCallback(
-    (message: string, attachments: AttachedFile[]): void => {
-      // Build message content
-      let content = message;
-
-      // Append attachment info to message for now
-      // Full attachment handling comes in task 041
-      if (attachments.length > 0) {
-        const attachmentNames = attachments.map((f) => f.name).join(', ');
-        if (content) {
-          content += `\n\n[Attachments: ${attachmentNames}]`;
-        } else {
-          content = `[Attachments: ${attachmentNames}]`;
-        }
+    async (message: string, attachments: AttachedFile[]): Promise<void> => {
+      if (!message.trim() && attachments.length === 0) {
+        return;
       }
 
-      if (content) {
-        addUserMessage(content);
-      }
+      const fileAttachments = convertAttachments(attachments);
+      await sendMessage(message, fileAttachments.length > 0 ? fileAttachments : undefined);
     },
-    [addUserMessage]
+    [sendMessage, convertAttachments]
   );
+
+  /**
+   * Handles stopping the agent.
+   */
+  const handleStop = useCallback(async (): Promise<void> => {
+    await stopAgent();
+  }, [stopAgent]);
 
   // Auto-scroll to bottom when new messages arrive (if user is at bottom)
   useEffect(() => {
@@ -314,10 +352,23 @@ export const ChatPane = memo(function ChatPane({
     return () => container.removeEventListener('scroll', checkIfAtBottom);
   }, [checkIfAtBottom]);
 
+  // Determine if input should be disabled
+  const isInputDisabled = isStreaming || connectionState === 'connecting';
+
   return (
     <div className={cn('flex flex-col h-full', className)}>
-      {/* Header with model selector */}
-      <ChatHeader messageCount={messages.length} isStreaming={isStreaming} />
+      {/* Header with model selector and connection status */}
+      <ChatHeader
+        messageCount={messages.length}
+        isStreaming={isStreaming}
+        connectionState={connectionState}
+        onRetryConnection={initializeAgent}
+      />
+
+      {/* Error banner */}
+      {lastError && (
+        <ErrorBanner error={lastError} onDismiss={clearError} />
+      )}
 
       {/* Message list with scroll container */}
       <div
@@ -336,14 +387,51 @@ export const ChatPane = memo(function ChatPane({
       {/* Chat input with file attachment support */}
       <ChatInput
         onSend={handleSend}
-        disabled={isStreaming}
-        placeholder="Type a message..."
+        disabled={isInputDisabled}
+        placeholder={getPlaceholderText(connectionState, workspacePath)}
         initialMessage={getPromptText(selectedPrompt)}
         key={selectedPrompt}
       />
+
+      {/* Stop button when streaming */}
+      {isStreaming && (
+        <div className="absolute bottom-20 right-4">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleStop}
+            className="shadow-lg"
+          >
+            Stop
+          </Button>
+        </div>
+      )}
     </div>
   );
 });
+
+/**
+ * Get placeholder text based on connection state.
+ */
+function getPlaceholderText(
+  connectionState: AgentChatState['connectionState'],
+  workspacePath: string | null
+): string {
+  if (!workspacePath) {
+    return 'Select a workspace folder to start...';
+  }
+
+  switch (connectionState) {
+    case 'connecting':
+      return 'Connecting to agent...';
+    case 'error':
+      return 'Connection error. Try again...';
+    case 'disconnected':
+      return 'Initializing...';
+    default:
+      return 'Type a message...';
+  }
+}
 
 /**
  * Props for the ChatHeader component.
@@ -351,16 +439,29 @@ export const ChatPane = memo(function ChatPane({
 interface ChatHeaderProps {
   messageCount: number;
   isStreaming: boolean;
+  connectionState: AgentChatState['connectionState'];
+  onRetryConnection: () => void;
 }
 
 /**
- * Header for the chat pane showing model selector and message count.
+ * Header for the chat pane showing model selector, connection status, and message count.
  */
-function ChatHeader({ messageCount, isStreaming }: ChatHeaderProps): ReactElement {
+function ChatHeader({
+  messageCount,
+  isStreaming,
+  connectionState,
+  onRetryConnection,
+}: ChatHeaderProps): ReactElement {
   return (
     <div className="flex-shrink-0 px-4 py-3 border-b">
       <div className="flex items-center justify-between">
-        <ModelSelector disabled={isStreaming} />
+        <div className="flex items-center gap-3">
+          <ModelSelector disabled={isStreaming || connectionState === 'connecting'} />
+          <ConnectionIndicator
+            state={connectionState}
+            onRetry={onRetryConnection}
+          />
+        </div>
         {messageCount > 0 && (
           <span className="text-xs text-muted-foreground">
             {messageCount} message{messageCount !== 1 ? 's' : ''}
@@ -372,6 +473,88 @@ function ChatHeader({ messageCount, isStreaming }: ChatHeaderProps): ReactElemen
 }
 
 /**
+ * Props for the ConnectionIndicator component.
+ */
+interface ConnectionIndicatorProps {
+  state: AgentChatState['connectionState'];
+  onRetry: () => void;
+}
+
+/**
+ * Shows current connection state with visual indicator.
+ */
+function ConnectionIndicator({ state, onRetry }: ConnectionIndicatorProps): ReactElement | null {
+  switch (state) {
+    case 'connecting':
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="w-3 h-3 animate-spin" />
+          <span>Connecting...</span>
+        </div>
+      );
+    case 'connected':
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-green-600">
+          <div className="w-2 h-2 rounded-full bg-green-500" />
+          <span>Connected</span>
+        </div>
+      );
+    case 'error':
+      return (
+        <button
+          onClick={onRetry}
+          className="flex items-center gap-1.5 text-xs text-destructive hover:underline"
+        >
+          <AlertCircle className="w-3 h-3" />
+          <span>Connection error - Click to retry</span>
+        </button>
+      );
+    case 'disconnected':
+      return (
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="w-2 h-2 rounded-full bg-gray-400" />
+          <span>Disconnected</span>
+        </div>
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Props for the ErrorBanner component.
+ */
+interface ErrorBannerProps {
+  error: { code: string; message: string; recoverable: boolean };
+  onDismiss: () => void;
+}
+
+/**
+ * Error banner shown when agent encounters an error.
+ */
+function ErrorBanner({ error, onDismiss }: ErrorBannerProps): ReactElement {
+  return (
+    <div className="flex-shrink-0 px-4 py-2 bg-destructive/10 border-b border-destructive/20">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-sm text-destructive">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span className="font-medium">{error.code}:</span>
+          <span className="truncate">{error.message}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onDismiss}
+          className="flex-shrink-0 h-6 px-2 text-xs"
+        >
+          Dismiss
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Export chat state and actions types for external use.
  */
-export type { ChatState, ChatActions, ChatMessage };
+export type { AgentChatState, AgentChatActions, ChatMessage };

@@ -14,3 +14,12 @@ export {
   registerAgentBridge,
   removeAgentBridge,
 } from './agent-bridge.js';
+
+// Chat handler service for processing messages
+export {
+  ChatHandlerService,
+  ChatHandlerConfig,
+  getChatHandlerService,
+  initializeChatHandlerService,
+  cleanupChatHandlerService,
+} from './chat-handlers.js';

@@ -39,7 +39,7 @@
 ## Phase 3: Integration
 
 - [x] [031 - Implement IPC communication layer between Electron and agent](docs/tasks/archive/031-ipc-communication/spec.md) (Effort: M, Tier: standard)
-- [ ] [032 - Connect ChatPane to agent backend with streaming](docs/tasks/active/032-chatpane-agent-connection/spec.md) (Effort: M, Tier: standard)
+- [x] [032 - Connect ChatPane to agent backend with streaming](docs/tasks/archive/032-chatpane-agent-connection/spec.md) (Effort: M, Tier: standard)
 - [ ] [033 - Wire up AskUserQuestion to UI with multi-choice widgets](docs/tasks/active/033-askuserquestion-ui/spec.md) (Effort: M, Tier: standard)
 - [ ] [034 - Connect TodoList to StatePane progress visualization](docs/tasks/active/034-todolist-visualization/spec.md) (Effort: M, Tier: standard)
 - [ ] [035 - Implement artifacts tracking and display in StatePane](docs/tasks/active/035-artifacts-tracking/spec.md) (Effort: M, Tier: standard)

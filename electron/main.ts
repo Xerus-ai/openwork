@@ -17,6 +17,7 @@ import {
   setupWindowStateListeners,
 } from './ipc-handlers.js';
 import { registerAgentBridge, removeAgentBridge } from './ipc/agent-bridge.js';
+import { initializeChatHandlerService, cleanupChatHandlerService } from './ipc/chat-handlers.js';
 
 // ESM compatibility for __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -81,6 +82,9 @@ async function initializeApp(): Promise<void> {
   // Register agent bridge for agent communication
   registerAgentBridge(getMainWindow);
 
+  // Initialize chat handler service to process messages
+  initializeChatHandlerService();
+
   // Create the main window
   await createWindow();
 
@@ -92,6 +96,9 @@ async function initializeApp(): Promise<void> {
  */
 function handleShutdown(): void {
   console.log('[Main] Shutting down...');
+
+  // Cleanup chat handler service
+  cleanupChatHandlerService();
 
   // Remove agent bridge handlers
   removeAgentBridge();

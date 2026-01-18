@@ -10,7 +10,7 @@ import { FileAttachmentList } from './FileAttachment';
  * Props for the ChatInput component.
  */
 export interface ChatInputProps {
-  onSend: (message: string, attachments: AttachedFile[]) => void;
+  onSend: (message: string, attachments: AttachedFile[]) => void | Promise<void>;
   disabled?: boolean;
   placeholder?: string;
   className?: string;
