@@ -57,3 +57,14 @@ export {
   cleanupExecutionHandlers,
   TOOL_CATEGORIES,
 } from './execution-handlers.js';
+
+// Skill handlers for skill loading events
+export {
+  setSkillRequestId,
+  getSkillRequestId,
+  broadcastSkillLoaded,
+  createSkillBroadcaster,
+  getSkillBroadcaster,
+  initializeSkillHandlers,
+  cleanupSkillHandlers,
+} from './skill-handlers.js';

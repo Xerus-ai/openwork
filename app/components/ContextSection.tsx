@@ -15,7 +15,30 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import type { LoadedSkill, McpConnector, SessionMetadata, ContextSummary } from '@/hooks/useSessionContext';
+import type { SkillState } from '@/hooks/useSkills';
 import { SkillBadge } from './SkillBadge';
+
+/**
+ * Unified skill type that works with both LoadedSkill and SkillState.
+ */
+type ContextSkill = LoadedSkill | SkillState;
+
+/**
+ * Type guard to check if a skill has a loading status.
+ */
+function hasLoadingStatus(skill: ContextSkill): skill is SkillState {
+  return 'status' in skill;
+}
+
+/**
+ * Extended summary with loading counts.
+ */
+interface ExtendedContextSummary extends ContextSummary {
+  /** Number of skills currently loading */
+  loadingSkillCount?: number;
+  /** Number of skills that failed to load */
+  erroredSkillCount?: number;
+}
 
 /**
  * Props for the ContextSection component.
@@ -23,14 +46,14 @@ import { SkillBadge } from './SkillBadge';
 export interface ContextSectionProps {
   /** Current workspace folder path */
   workspacePath: string | null;
-  /** List of loaded skills */
-  skills: LoadedSkill[];
+  /** List of loaded skills (supports both LoadedSkill and SkillState) */
+  skills: ContextSkill[];
   /** Session metadata */
   session: SessionMetadata | null;
   /** MCP connectors */
   mcpConnectors: McpConnector[];
   /** Summary statistics */
-  summary: ContextSummary;
+  summary: ContextSummary | ExtendedContextSummary;
   /** Callback when workspace path is clicked */
   onWorkspaceClick?: () => void;
   /** Callback when a skill is clicked */
@@ -131,16 +154,18 @@ function WorkspaceInfo({
 }
 
 /**
- * SkillsList displays loaded skills as badges.
+ * SkillsList displays loaded skills as badges with loading indicators.
  */
 function SkillsList({
   skills,
   onSkillClick,
+  loadingCount,
 }: {
-  skills: LoadedSkill[];
+  skills: ContextSkill[];
   onSkillClick?: (id: string) => void;
+  loadingCount?: number;
 }): ReactElement {
-  if (skills.length === 0) {
+  if (skills.length === 0 && !loadingCount) {
     return (
       <div className="flex items-center gap-2 text-muted-foreground">
         <Sparkles className="h-4 w-4" />
@@ -149,22 +174,54 @@ function SkillsList({
     );
   }
 
+  // Count skills by status
+  const loadedSkills = skills.filter((s) => !hasLoadingStatus(s) || s.status === 'loaded');
+  const loadingSkills = skills.filter((s) => hasLoadingStatus(s) && s.status === 'loading');
+  const erroredSkills = skills.filter((s) => hasLoadingStatus(s) && s.status === 'error');
+
+  // Build status indicator text
+  const statusParts: string[] = [];
+  if (loadedSkills.length > 0) {
+    statusParts.push(`${loadedSkills.length} loaded`);
+  }
+  if (loadingSkills.length > 0 || (loadingCount && loadingCount > 0)) {
+    const loadingTotal = loadingSkills.length + (loadingCount ?? 0);
+    statusParts.push(`${loadingTotal} loading`);
+  }
+  if (erroredSkills.length > 0) {
+    statusParts.push(`${erroredSkills.length} failed`);
+  }
+
+  const statusText = statusParts.length > 0 ? statusParts.join(', ') : `${skills.length} skill${skills.length !== 1 ? 's' : ''}`;
+
   return (
     <div className="space-y-1.5">
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Zap className="h-3.5 w-3.5" />
-        <span className="text-xs">Loaded Skills ({skills.length})</span>
+      <div className="flex items-center justify-between text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Zap className="h-3.5 w-3.5" />
+          <span className="text-xs">Skills</span>
+        </div>
+        <span className="text-xs">{statusText}</span>
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {skills.map((skill) => (
-          <SkillBadge
-            key={skill.id}
-            name={skill.name}
-            category={skill.category}
-            description={skill.description}
-            onClick={onSkillClick ? () => onSkillClick(skill.id) : undefined}
-          />
-        ))}
+        {skills.map((skill) => {
+          // Get display name - SkillState uses displayName, LoadedSkill uses name
+          const displayName = hasLoadingStatus(skill) ? skill.displayName : skill.name;
+          const status = hasLoadingStatus(skill) ? skill.status : 'loaded';
+          const error = hasLoadingStatus(skill) ? skill.error : undefined;
+
+          return (
+            <SkillBadge
+              key={skill.id}
+              name={displayName}
+              category={skill.category}
+              description={skill.description}
+              status={status}
+              error={error}
+              onClick={onSkillClick ? () => onSkillClick(skill.id) : undefined}
+            />
+          );
+        })}
       </div>
     </div>
   );
@@ -318,12 +375,13 @@ function EmptyState(): ReactElement {
 /**
  * ContextSection displays session context information including:
  * - Current workspace path
- * - Loaded skills as badges
+ * - Loaded skills as badges with loading indicators
  * - Session metadata (model, duration, messages)
  * - MCP connector status (for future use)
  *
  * Features:
  * - Clear visual hierarchy
+ * - Real-time skill loading indicators
  * - Tooltips for more info
  * - Click interactions for workspace and skills
  * - Responsive layout
@@ -338,6 +396,10 @@ export const ContextSection = memo(function ContextSection({
   onSkillClick,
   className,
 }: ContextSectionProps): ReactElement {
+  // Get extended summary with loading counts if available
+  const extendedSummary = summary as ExtendedContextSummary;
+  const loadingSkillCount = extendedSummary.loadingSkillCount;
+
   /**
    * Determines if context is empty (nothing to show).
    */
@@ -345,14 +407,32 @@ export const ContextSection = memo(function ContextSection({
     return !workspacePath && skills.length === 0 && !session && mcpConnectors.length === 0;
   }, [workspacePath, skills, session, mcpConnectors]);
 
+  /**
+   * Build header subtitle showing skill status.
+   */
+  const skillStatusText = useMemo(() => {
+    if (skills.length === 0 && !loadingSkillCount) {
+      return null;
+    }
+
+    const loadedCount = skills.filter((s) => !hasLoadingStatus(s) || s.status === 'loaded').length;
+    const loadingCount = skills.filter((s) => hasLoadingStatus(s) && s.status === 'loading').length + (loadingSkillCount ?? 0);
+
+    if (loadingCount > 0) {
+      return `${loadedCount} loaded, ${loadingCount} loading`;
+    }
+
+    return `${loadedCount} skill${loadedCount !== 1 ? 's' : ''}`;
+  }, [skills, loadingSkillCount]);
+
   return (
     <Card className={cn('overflow-hidden', className)}>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center justify-between text-sm">
           <span>Context</span>
-          {summary.skillCount > 0 && (
+          {skillStatusText && (
             <span className="text-xs font-normal text-muted-foreground">
-              {summary.skillCount} skill{summary.skillCount !== 1 ? 's' : ''}
+              {skillStatusText}
             </span>
           )}
         </CardTitle>
@@ -365,8 +445,12 @@ export const ContextSection = memo(function ContextSection({
             {/* Workspace info */}
             <WorkspaceInfo path={workspacePath} onClick={onWorkspaceClick} />
 
-            {/* Loaded skills */}
-            <SkillsList skills={skills} onSkillClick={onSkillClick} />
+            {/* Loaded skills with loading indicators */}
+            <SkillsList
+              skills={skills}
+              onSkillClick={onSkillClick}
+              loadingCount={loadingSkillCount}
+            />
 
             {/* Session metadata */}
             {session && (

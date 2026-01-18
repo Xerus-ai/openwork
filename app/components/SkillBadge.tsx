@@ -10,8 +10,15 @@ import {
   Palette,
   Settings,
   Sparkles,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+/**
+ * Loading status for a skill.
+ */
+export type SkillLoadingStatus = 'loading' | 'loaded' | 'error';
 
 /**
  * Category color and icon mappings for skill badges.
@@ -46,6 +53,10 @@ const CATEGORY_STYLES: Record<
   },
   frontend: {
     color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300',
+    icon: Palette,
+  },
+  design: {
+    color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300',
     icon: Palette,
   },
   config: {
@@ -84,6 +95,10 @@ export interface SkillBadgeProps {
   category: string;
   /** Optional description for tooltip */
   description?: string;
+  /** Loading status of the skill */
+  status?: SkillLoadingStatus;
+  /** Error message if status is 'error' */
+  error?: string;
   /** Whether to show the category icon */
   showIcon?: boolean;
   /** Size variant */
@@ -99,6 +114,8 @@ export interface SkillBadgeProps {
  *
  * Features:
  * - Category-specific colors and icons
+ * - Loading spinner when status is 'loading'
+ * - Error indicator when status is 'error'
  * - Tooltip with description
  * - Two size variants
  * - Click interaction support
@@ -107,12 +124,14 @@ export const SkillBadge = memo(function SkillBadge({
   name,
   category,
   description,
+  status = 'loaded',
+  error,
   showIcon = true,
   size = 'sm',
   className,
   onClick,
 }: SkillBadgeProps): ReactElement {
-  const { color, icon: Icon } = getCategoryStyle(category);
+  const { color, icon: CategoryIcon } = getCategoryStyle(category);
 
   const sizeClasses = size === 'sm'
     ? 'px-2 py-0.5 text-xs gap-1'
@@ -121,17 +140,62 @@ export const SkillBadge = memo(function SkillBadge({
   const iconSize = size === 'sm' ? 'h-3 w-3' : 'h-3.5 w-3.5';
 
   const isClickable = Boolean(onClick);
+  const isLoading = status === 'loading';
+  const isError = status === 'error';
+
+  // Determine tooltip text
+  const tooltipText = isError && error
+    ? `Error: ${error}`
+    : description ?? (isLoading ? 'Loading...' : undefined);
+
+  // Choose appropriate color based on status
+  const statusColor = isError
+    ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+    : isLoading
+    ? 'bg-gray-100 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400'
+    : color;
+
+  // Determine which icon to show
+  const renderIcon = (): ReactElement | null => {
+    if (!showIcon) return null;
+
+    if (isLoading) {
+      return (
+        <Loader2
+          className={cn(iconSize, 'animate-spin')}
+          aria-hidden="true"
+        />
+      );
+    }
+
+    if (isError) {
+      return (
+        <AlertCircle
+          className={iconSize}
+          aria-hidden="true"
+        />
+      );
+    }
+
+    return (
+      <CategoryIcon
+        className={iconSize}
+        aria-hidden="true"
+      />
+    );
+  };
 
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-full font-medium transition-colors',
         sizeClasses,
-        color,
+        statusColor,
+        isLoading && 'opacity-75',
         isClickable && 'cursor-pointer hover:opacity-80',
         className
       )}
-      title={description}
+      title={tooltipText}
       onClick={onClick}
       role={isClickable ? 'button' : undefined}
       tabIndex={isClickable ? 0 : undefined}
@@ -145,8 +209,10 @@ export const SkillBadge = memo(function SkillBadge({
             }
           : undefined
       }
+      aria-busy={isLoading}
+      aria-invalid={isError}
     >
-      {showIcon && <Icon className={iconSize} aria-hidden="true" />}
+      {renderIcon()}
       <span>{name}</span>
     </span>
   );
