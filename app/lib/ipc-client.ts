@@ -4,7 +4,6 @@
  */
 
 import {
-  AgentChannels,
   AgentInitResponse,
   AgentStatusResponse,
   AgentMessageChunk,
@@ -44,23 +43,16 @@ export interface IpcClientConfig {
 }
 
 /**
- * Default configuration values.
- */
-const DEFAULT_CONFIG: IpcClientConfig = {
-  defaultTimeout: 30000,
-};
-
-/**
  * IPC Client for agent communication from the renderer process.
  */
 export class IpcClient {
-  private config: IpcClientConfig;
   private eventHandlers: AgentEventHandlers = {};
   private cleanupFunctions: (() => void)[] = [];
   private isInitialized = false;
 
-  constructor(config: Partial<IpcClientConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  constructor(_config?: Partial<IpcClientConfig>) {
+    // Config parameter available for future timeout implementation
   }
 
   /**

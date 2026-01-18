@@ -6,12 +6,14 @@ import {
   type AgentChatState,
   type AgentChatActions,
   type ChatMessage,
+  type PendingQuestion,
 } from '@/hooks/useAgentChat';
 import { useWorkspace } from '@/hooks/useWorkspace';
 import { Message } from './Message';
 import { StreamingMessage } from './StreamingMessage';
 import { ChatInput } from './ChatInput';
 import { QuickActions } from './QuickActions';
+import { QuestionPrompt } from './QuestionPrompt';
 import { ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import type { AttachedFile } from '@/hooks/useFileUpload';
@@ -229,10 +231,15 @@ export const ChatPane = memo(function ChatPane({
     connectionState,
     isAgentInitialized,
     lastError,
+    currentQuestion,
+    isSubmittingAnswer,
+    questionError,
     sendMessage,
     initializeAgent,
     stopAgent,
     clearError,
+    submitQuestionAnswer,
+    skipQuestion,
   } = agentChat;
 
   const { workspacePath, validationResult } = useWorkspace();
@@ -296,11 +303,12 @@ export const ChatPane = memo(function ChatPane({
 
   /**
    * Converts AttachedFile to FileAttachment format for IPC.
+   * Note: In browser context, File objects don't have path. We use name as identifier.
    */
   const convertAttachments = useCallback((files: AttachedFile[]): FileAttachment[] => {
     return files.map((file) => ({
       name: file.name,
-      path: file.path,
+      path: file.name, // Browser File objects don't have path, use name
       mimeType: file.type,
       size: file.size,
     }));
@@ -329,6 +337,23 @@ export const ChatPane = memo(function ChatPane({
     await stopAgent();
   }, [stopAgent]);
 
+  /**
+   * Handles submitting an answer to the current question.
+   */
+  const handleQuestionSubmit = useCallback(
+    async (selectedValues: string[]): Promise<void> => {
+      await submitQuestionAnswer(selectedValues);
+    },
+    [submitQuestionAnswer]
+  );
+
+  /**
+   * Handles skipping the current question.
+   */
+  const handleQuestionSkip = useCallback(async (): Promise<void> => {
+    await skipQuestion();
+  }, [skipQuestion]);
+
   // Auto-scroll to bottom when new messages arrive (if user is at bottom)
   useEffect(() => {
     if (isAtBottom) {
@@ -353,7 +378,8 @@ export const ChatPane = memo(function ChatPane({
   }, [checkIfAtBottom]);
 
   // Determine if input should be disabled
-  const isInputDisabled = isStreaming || connectionState === 'connecting';
+  // Disable input when streaming, connecting, or when a question is pending
+  const isInputDisabled = isStreaming || connectionState === 'connecting' || currentQuestion !== null;
 
   return (
     <div className={cn('flex flex-col h-full', className)}>
@@ -382,13 +408,26 @@ export const ChatPane = memo(function ChatPane({
           isAtBottom={isAtBottom}
           onActionSelect={handleActionSelect}
         />
+
+        {/* Question prompt - displayed at the end of message list */}
+        {currentQuestion && (
+          <div className="px-4">
+            <QuestionPrompt
+              question={currentQuestion}
+              onSubmit={handleQuestionSubmit}
+              onSkip={handleQuestionSkip}
+              isSubmitting={isSubmittingAnswer}
+              error={questionError}
+            />
+          </div>
+        )}
       </div>
 
       {/* Chat input with file attachment support */}
       <ChatInput
         onSend={handleSend}
         disabled={isInputDisabled}
-        placeholder={getPlaceholderText(connectionState, workspacePath)}
+        placeholder={getPlaceholderText(connectionState, workspacePath, currentQuestion)}
         initialMessage={getPromptText(selectedPrompt)}
         key={selectedPrompt}
       />
@@ -415,10 +454,15 @@ export const ChatPane = memo(function ChatPane({
  */
 function getPlaceholderText(
   connectionState: AgentChatState['connectionState'],
-  workspacePath: string | null
+  workspacePath: string | null,
+  currentQuestion: PendingQuestion | null
 ): string {
   if (!workspacePath) {
     return 'Select a workspace folder to start...';
+  }
+
+  if (currentQuestion) {
+    return 'Please answer the question above...';
   }
 
   switch (connectionState) {

@@ -6,10 +6,10 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useChat, type ChatState, type ChatActions, type ChatMessage } from './useChat';
-import { useModel, type ModelId } from './useModel';
+import { useModel } from './useModel';
 import { useWorkspace } from './useWorkspace';
+import { useQuestions, type PendingQuestion } from './useQuestions';
 import {
-  getIpcClient,
   initializeIpcClient,
   cleanupIpcClient,
   type AgentEventHandlers,
@@ -20,6 +20,7 @@ import type {
   AgentMessageComplete,
   AgentToolUse,
   AgentToolResult,
+  AgentQuestion,
   AgentError,
   FileAttachment,
 } from '@/lib/ipc-types';
@@ -57,6 +58,14 @@ export interface AgentChatState extends ChatState {
   currentRequestId: string | null;
   toolExecutions: ToolExecution[];
   lastError: AgentError | null;
+  /** Currently active question (or null if none) */
+  currentQuestion: PendingQuestion | null;
+  /** Queue of pending questions */
+  questionQueue: PendingQuestion[];
+  /** Whether a question answer is being submitted */
+  isSubmittingAnswer: boolean;
+  /** Last question submission error */
+  questionError: string | null;
 }
 
 /**
@@ -67,6 +76,12 @@ export interface AgentChatActions extends Omit<ChatActions, 'addUserMessage'> {
   initializeAgent: () => Promise<boolean>;
   stopAgent: () => Promise<void>;
   clearError: () => void;
+  /** Submit an answer to the current question */
+  submitQuestionAnswer: (selectedValues: string[]) => Promise<boolean>;
+  /** Skip the current question */
+  skipQuestion: () => Promise<boolean>;
+  /** Clear question error */
+  clearQuestionError: () => void;
 }
 
 /**
@@ -96,6 +111,7 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
   const chat = useChat();
   const { selectedModel } = useModel();
   const { workspacePath, validationResult } = useWorkspace();
+  const questions = useQuestions();
 
   const [connectionState, setConnectionState] = useState<AgentConnectionState>('disconnected');
   const [isAgentInitialized, setIsAgentInitialized] = useState(false);
@@ -215,6 +231,17 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
   );
 
   /**
+   * Handle incoming questions from the agent.
+   */
+  const handleQuestion = useCallback(
+    (question: AgentQuestion) => {
+      console.log('[useAgentChat] Received question:', question.questionId);
+      questions.handleQuestion(question);
+    },
+    [questions]
+  );
+
+  /**
    * Initialize the IPC client with event handlers.
    */
   useEffect(() => {
@@ -223,6 +250,7 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
       onMessageComplete: handleMessageComplete,
       onToolUse: handleToolUse,
       onToolResult: handleToolResult,
+      onQuestion: handleQuestion,
       onError: handleError,
     };
 
@@ -232,7 +260,7 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
       cleanupIpcClient();
       clientRef.current = null;
     };
-  }, [handleMessageChunk, handleMessageComplete, handleToolUse, handleToolResult, handleError]);
+  }, [handleMessageChunk, handleMessageComplete, handleToolUse, handleToolResult, handleQuestion, handleError]);
 
   /**
    * Initialize the agent with workspace and model.
@@ -401,6 +429,12 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     toolExecutions,
     lastError,
 
+    // Question state
+    currentQuestion: questions.currentQuestion,
+    questionQueue: questions.questionQueue,
+    isSubmittingAnswer: questions.isSubmitting,
+    questionError: questions.lastError,
+
     // Chat actions (excluding addUserMessage which is replaced by sendMessage)
     startAssistantMessage: chat.startAssistantMessage,
     appendToMessage: chat.appendToMessage,
@@ -414,6 +448,11 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     initializeAgent,
     stopAgent,
     clearError,
+
+    // Question actions
+    submitQuestionAnswer: questions.submitAnswer,
+    skipQuestion: questions.skipQuestion,
+    clearQuestionError: questions.clearError,
   };
 }
 
@@ -424,4 +463,5 @@ export type {
   ChatMessage,
   ChatState,
   FileAttachment,
+  PendingQuestion,
 };
