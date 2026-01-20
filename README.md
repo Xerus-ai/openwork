@@ -11,11 +11,7 @@ It provides a sandboxed workspace where AI can manage files, read documents, and
 
 See OpenWork in action:
 
-1. **Folder Organization & Cleanup**
-2. **Generate PPT from Files**
-3. **Generate XLSX Spreadsheets**
-
-*(Demo videos coming soon)*
+![OpenWork Demo](demo/openwork.gif)
 
 ## Installation
 
