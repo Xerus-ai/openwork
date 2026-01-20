@@ -22,6 +22,7 @@ export const AgentChannels = {
   AGENT_TODO_UPDATE: 'agent:todo-update',
   AGENT_ARTIFACT_CREATED: 'agent:artifact-created',
   AGENT_SKILL_LOADED: 'agent:skill-loaded',
+  AGENT_STATUS_UPDATE: 'agent:status-update',
   AGENT_ERROR: 'agent:error',
 } as const;
 
@@ -212,6 +213,25 @@ export interface AgentSkillLoaded extends IpcBaseMessage {
   skillName: string;
   skillPreview?: string;
 }
+
+/**
+ * Processing status update from agent.
+ */
+export interface AgentStatusUpdate extends IpcBaseMessage {
+  requestId: string;
+  status: ProcessingStatus;
+  message: string;
+}
+
+/**
+ * Processing status types.
+ */
+export type ProcessingStatus =
+  | 'sending'
+  | 'processing'
+  | 'thinking'
+  | 'responding'
+  | 'idle';
 
 /**
  * Agent event types.

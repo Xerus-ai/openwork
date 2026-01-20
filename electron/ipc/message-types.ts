@@ -76,6 +76,7 @@ export const AgentChannels = {
   AGENT_TODO_UPDATE: 'agent:todo-update',
   AGENT_ARTIFACT_CREATED: 'agent:artifact-created',
   AGENT_SKILL_LOADED: 'agent:skill-loaded',
+  AGENT_STATUS_UPDATE: 'agent:status-update',
 
   // Error handling
   AGENT_ERROR: 'agent:error',
@@ -294,6 +295,28 @@ export interface AgentSkillLoaded extends IpcBaseMessage {
 }
 
 /**
+ * Processing status types.
+ */
+export type ProcessingStatus =
+  | 'sending'
+  | 'processing'
+  | 'thinking'
+  | 'responding'
+  | 'idle';
+
+/**
+ * Processing status update from agent.
+ */
+export interface AgentStatusUpdate extends IpcBaseMessage {
+  /** Correlation ID linking to original request */
+  requestId: string;
+  /** Current processing status */
+  status: ProcessingStatus;
+  /** Human-readable status message */
+  message: string;
+}
+
+/**
  * Generic agent event notification.
  */
 export interface AgentEvent extends IpcBaseMessage {
@@ -407,6 +430,7 @@ export interface ElectronAgentAPI {
   onTodoUpdate: (callback: (update: AgentTodoUpdate) => void) => () => void;
   onArtifactCreated: (callback: (artifact: AgentArtifactCreated) => void) => () => void;
   onSkillLoaded: (callback: (skill: AgentSkillLoaded) => void) => () => void;
+  onStatusUpdate: (callback: (status: AgentStatusUpdate) => void) => () => void;
   onError: (callback: (error: AgentError) => void) => () => void;
 }
 

@@ -10,9 +10,7 @@ import { useModel } from './useModel';
 import { useWorkspace } from './useWorkspace';
 import { useQuestions, type PendingQuestion } from './useQuestions';
 import {
-  initializeIpcClient,
-  cleanupIpcClient,
-  type AgentEventHandlers,
+  getIpcClient,
   type IpcClient,
 } from '@/lib/ipc-client';
 import type {
@@ -21,8 +19,10 @@ import type {
   AgentToolUse,
   AgentToolResult,
   AgentQuestion,
+  AgentStatusUpdate,
   AgentError,
   FileAttachment,
+  ProcessingStatus,
 } from '@/lib/ipc-types';
 
 /**
@@ -66,6 +66,10 @@ export interface AgentChatState extends ChatState {
   isSubmittingAnswer: boolean;
   /** Last question submission error */
   questionError: string | null;
+  /** Current processing status */
+  processingStatus: ProcessingStatus | null;
+  /** Human-readable status message */
+  statusMessage: string | null;
 }
 
 /**
@@ -82,6 +86,8 @@ export interface AgentChatActions extends Omit<ChatActions, 'addUserMessage'> {
   skipQuestion: () => Promise<boolean>;
   /** Clear question error */
   clearQuestionError: () => void;
+  /** Load messages for a session */
+  loadMessages: (messages: ChatMessage[]) => void;
 }
 
 /**
@@ -118,36 +124,45 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
   const [currentRequestId, setCurrentRequestId] = useState<string | null>(null);
   const [toolExecutions, setToolExecutions] = useState<ToolExecution[]>([]);
   const [lastError, setLastError] = useState<AgentError | null>(null);
+  const [processingStatus, setProcessingStatus] = useState<ProcessingStatus | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const clientRef = useRef<IpcClient | null>(null);
   const currentMessageIdRef = useRef<string | null>(null);
 
+  // Store chat functions in refs to avoid recreating handlers when chat state changes
+  // This prevents IPC client from being cleaned up during message processing
+  const chatRef = useRef(chat);
+  chatRef.current = chat;
+
   /**
    * Handle streaming message chunks from the agent.
+   * Uses ref to access chat functions to keep this callback stable.
    */
   const handleMessageChunk = useCallback(
     (chunk: AgentMessageChunk) => {
       if (!currentMessageIdRef.current) {
         // Start a new assistant message if we don't have one
-        const messageId = chat.startAssistantMessage();
+        const messageId = chatRef.current.startAssistantMessage();
         currentMessageIdRef.current = messageId;
       }
 
       // Append content to the current message
-      chat.appendToMessage(currentMessageIdRef.current, chunk.content);
+      chatRef.current.appendToMessage(currentMessageIdRef.current, chunk.content);
     },
-    [chat]
+    [] // No dependencies - uses ref
   );
 
   /**
    * Handle message completion from the agent.
+   * Uses ref to access chat functions to keep this callback stable.
    */
   const handleMessageComplete = useCallback(
     (message: AgentMessageComplete) => {
       if (currentMessageIdRef.current) {
         // Update the final message content
-        chat.updateMessageContent(currentMessageIdRef.current, message.content);
-        chat.completeMessage(currentMessageIdRef.current);
+        chatRef.current.updateMessageContent(currentMessageIdRef.current, message.content);
+        chatRef.current.completeMessage(currentMessageIdRef.current);
         currentMessageIdRef.current = null;
       }
 
@@ -161,7 +176,7 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
         );
       }
     },
-    [chat]
+    [] // No dependencies - uses ref
   );
 
   /**
@@ -205,8 +220,13 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     );
   }, []);
 
+  // Store questions handler in ref to keep callback stable
+  const questionsRef = useRef(questions);
+  questionsRef.current = questions;
+
   /**
    * Handle agent errors.
+   * Uses ref to access chat functions to keep this callback stable.
    */
   const handleError = useCallback(
     (error: AgentError) => {
@@ -215,7 +235,7 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
 
       // Mark current message as error if streaming
       if (currentMessageIdRef.current) {
-        chat.setMessageError(currentMessageIdRef.current);
+        chatRef.current.setMessageError(currentMessageIdRef.current);
         currentMessageIdRef.current = null;
       }
 
@@ -227,51 +247,88 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
       // Clear current request
       setCurrentRequestId(null);
     },
-    [chat]
+    [] // No dependencies - uses ref
   );
 
   /**
    * Handle incoming questions from the agent.
+   * Uses ref to keep this callback stable.
    */
   const handleQuestion = useCallback(
     (question: AgentQuestion) => {
       console.log('[useAgentChat] Received question:', question.questionId);
-      questions.handleQuestion(question);
+      questionsRef.current.handleQuestion(question);
     },
-    [questions]
+    [] // No dependencies - uses ref
   );
 
   /**
-   * Initialize the IPC client with event handlers.
+   * Handle status updates from the agent.
+   */
+  const handleStatusUpdate = useCallback(
+    (update: AgentStatusUpdate) => {
+      console.log('[useAgentChat] Status update:', update.status, update.message);
+      setProcessingStatus(update.status);
+      setStatusMessage(update.message);
+    },
+    []
+  );
+
+  /**
+   * Initialize the IPC client for agent operations.
+   * The client is used for sendMessage, initAgent, etc.
    */
   useEffect(() => {
-    const handlers: AgentEventHandlers = {
-      onMessageChunk: handleMessageChunk,
-      onMessageComplete: handleMessageComplete,
-      onToolUse: handleToolUse,
-      onToolResult: handleToolResult,
-      onQuestion: handleQuestion,
-      onError: handleError,
-    };
+    clientRef.current = getIpcClient();
+  }, []);
 
-    clientRef.current = initializeIpcClient(handlers);
+  /**
+   * Register IPC event listeners directly with electronAgentAPI.
+   * This follows the same pattern as useTodoList which works correctly.
+   * Each listener is registered with proper cleanup on unmount.
+   */
+  useEffect(() => {
+    const agentAPI = window.electronAgentAPI;
+    if (!agentAPI) {
+      console.warn('[useAgentChat] electronAgentAPI not available');
+      return;
+    }
 
+    // Register all event listeners
+    const cleanupChunk = agentAPI.onMessageChunk(handleMessageChunk);
+    const cleanupComplete = agentAPI.onMessageComplete(handleMessageComplete);
+    const cleanupToolUse = agentAPI.onToolUse(handleToolUse);
+    const cleanupToolResult = agentAPI.onToolResult(handleToolResult);
+    const cleanupQuestion = agentAPI.onQuestion(handleQuestion);
+    const cleanupStatusUpdate = agentAPI.onStatusUpdate(handleStatusUpdate);
+    const cleanupError = agentAPI.onError(handleError);
+
+    // Cleanup on unmount
     return () => {
-      cleanupIpcClient();
-      clientRef.current = null;
+      cleanupChunk();
+      cleanupComplete();
+      cleanupToolUse();
+      cleanupToolResult();
+      cleanupQuestion();
+      cleanupStatusUpdate();
+      cleanupError();
     };
-  }, [handleMessageChunk, handleMessageComplete, handleToolUse, handleToolResult, handleQuestion, handleError]);
+  }, [
+    handleMessageChunk,
+    handleMessageComplete,
+    handleToolUse,
+    handleToolResult,
+    handleQuestion,
+    handleStatusUpdate,
+    handleError,
+  ]);
 
   /**
    * Initialize the agent with workspace and model.
    */
   const initializeAgent = useCallback(async (): Promise<boolean> => {
-    if (!workspacePath) {
-      console.warn('[useAgentChat] Cannot initialize: no workspace selected');
-      return false;
-    }
-
-    if (validationResult && !validationResult.valid) {
+    // Workspace is now optional - agent will use default artifacts folder if not provided
+    if (workspacePath && validationResult && !validationResult.valid) {
       console.warn('[useAgentChat] Cannot initialize: workspace validation failed');
       return false;
     }
@@ -285,8 +342,9 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     setLastError(null);
 
     try {
+      // Pass workspace path (can be null - agent-bridge will use default)
       const response = await clientRef.current.initAgent(
-        workspacePath,
+        workspacePath || undefined,
         selectedModel
       );
 
@@ -328,8 +386,28 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
    */
   const sendMessage = useCallback(
     async (content: string, attachments?: FileAttachment[]): Promise<void> => {
-      if (!clientRef.current) {
+      // Capture client reference BEFORE any state changes to avoid race conditions
+      // (state changes can trigger re-renders that cleanup the client)
+      const client = clientRef.current;
+
+      if (chat.isStreaming) {
+        console.warn('[useAgentChat] Cannot send: already streaming');
+        return;
+      }
+
+      // Add user message to chat FIRST for immediate UI feedback
+      chat.addUserMessage(content);
+
+      // Clear previous tool executions
+      setToolExecutions([]);
+      setLastError(null);
+
+      if (!client) {
         console.error('[useAgentChat] Cannot send: IPC client not ready');
+        // Add error message to chat
+        const errorMsgId = chat.startAssistantMessage();
+        chat.updateMessageContent(errorMsgId, 'Error: Agent not available. Please run in Electron mode.');
+        chat.setMessageError(errorMsgId);
         return;
       }
 
@@ -339,28 +417,24 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
           const initialized = await initializeAgent();
           if (!initialized) {
             console.error('[useAgentChat] Cannot send: agent initialization failed');
+            // Add error message to chat
+            const errorMsgId = chat.startAssistantMessage();
+            chat.updateMessageContent(errorMsgId, 'Error: Could not initialize agent. Please check workspace settings.');
+            chat.setMessageError(errorMsgId);
             return;
           }
         } else {
           console.error('[useAgentChat] Cannot send: agent not initialized');
+          // Add error message to chat
+          const errorMsgId = chat.startAssistantMessage();
+          chat.updateMessageContent(errorMsgId, 'Error: Please select a workspace folder first.');
+          chat.setMessageError(errorMsgId);
           return;
         }
       }
 
-      if (chat.isStreaming) {
-        console.warn('[useAgentChat] Cannot send: already streaming');
-        return;
-      }
-
-      // Add user message to chat
-      chat.addUserMessage(content);
-
-      // Clear previous tool executions
-      setToolExecutions([]);
-      setLastError(null);
-
       try {
-        const { requestId } = await clientRef.current.sendMessage(content, attachments);
+        const { requestId } = await client.sendMessage(content, attachments);
         setCurrentRequestId(requestId);
         console.log('[useAgentChat] Message sent, requestId:', requestId);
       } catch (error) {
@@ -428,6 +502,8 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     currentRequestId,
     toolExecutions,
     lastError,
+    processingStatus,
+    statusMessage,
 
     // Question state
     currentQuestion: questions.currentQuestion,
@@ -442,12 +518,14 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     setMessageError: chat.setMessageError,
     clearMessages: chat.clearMessages,
     updateMessageContent: chat.updateMessageContent,
+    setMessages: chat.setMessages,
 
     // Agent actions
     sendMessage,
     initializeAgent,
     stopAgent,
     clearError,
+    loadMessages: chat.setMessages,
 
     // Question actions
     submitQuestionAnswer: questions.submitAnswer,

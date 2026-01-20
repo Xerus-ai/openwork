@@ -76,19 +76,26 @@ function getExecutionTypeForTool(toolName: string): ExecutionOutputType {
     normalized.includes('view') ||
     normalized === 'read' ||
     normalized === 'write' ||
-    normalized === 'edit'
+    normalized === 'edit' ||
+    normalized === 'multiedit' ||
+    normalized === 'notebookedit'
   ) {
     return 'file';
   }
 
   // Shell commands
-  if (normalized === 'bash' || normalized === 'shell' || normalized === 'command') {
+  if (normalized === 'bash' || normalized === 'shell' || normalized === 'bashoutput' || normalized === 'killbash') {
     return 'command';
   }
 
   // Web operations
   if (normalized.includes('web') || normalized.includes('fetch') || normalized.includes('search')) {
     return 'web';
+  }
+
+  // Task operations
+  if (normalized === 'task' || normalized === 'todowrite') {
+    return 'tool';
   }
 
   return 'tool';
@@ -113,18 +120,31 @@ function getToolLabel(toolName: string): string {
     case 'file_edit':
     case 'edit':
       return 'Edit File';
+    case 'multiedit':
+      return 'Multi Edit';
+    case 'notebookedit':
+      return 'Edit Notebook';
     case 'bash':
     case 'shell':
       return 'Run Command';
+    case 'bashoutput':
+      return 'Shell Output';
+    case 'killbash':
+      return 'Kill Shell';
     case 'web_fetch':
+    case 'webfetch':
       return 'Fetch URL';
     case 'web_search':
+    case 'websearch':
       return 'Web Search';
     case 'todo_write':
     case 'todo_update':
+    case 'todowrite':
       return 'Update Tasks';
     case 'todo_read':
       return 'Read Tasks';
+    case 'task':
+      return 'Run Task';
     case 'ask_user_question':
       return 'Ask Question';
     default:
@@ -137,6 +157,16 @@ function getToolLabel(toolName: string): string {
  */
 function getToolDetail(toolName: string, toolInput: Record<string, unknown>): string {
   const normalized = toolName.toLowerCase().replace(/-/g, '_');
+
+  // NotebookEdit - get notebook path
+  if (normalized === 'notebookedit') {
+    return (toolInput['notebook_path'] as string) || '';
+  }
+
+  // MultiEdit - get file path
+  if (normalized === 'multiedit') {
+    return (toolInput['file_path'] as string) || '';
+  }
 
   // File operations - get file path
   if (
@@ -158,6 +188,21 @@ function getToolDetail(toolName: string, toolInput: Record<string, unknown>): st
   // Shell commands - get command
   if (normalized === 'bash' || normalized === 'shell') {
     return (toolInput['command'] as string) || '';
+  }
+
+  // BashOutput - get bash_id
+  if (normalized === 'bashoutput') {
+    return (toolInput['bash_id'] as string) || '';
+  }
+
+  // KillBash - get shell_id
+  if (normalized === 'killbash') {
+    return (toolInput['shell_id'] as string) || '';
+  }
+
+  // Task - get description
+  if (normalized === 'task') {
+    return (toolInput['description'] as string) || '';
   }
 
   // Web operations

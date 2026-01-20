@@ -2,7 +2,6 @@ import type { ReactElement } from 'react';
 import { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import type { ChatMessage, MessageRole } from '@/hooks/useChat';
-import { User, Bot } from 'lucide-react';
 
 /**
  * Props for the Message component.
@@ -166,40 +165,18 @@ function processInlineFormatting(text: string, lineKey: number): ReactElement[] 
   return elements;
 }
 
-/**
- * Avatar component for message authors.
- */
-function MessageAvatar({ role }: { role: MessageRole }): ReactElement {
-  const isUser = role === 'user';
-
-  return (
-    <div
-      className={cn(
-        'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-        isUser
-          ? 'bg-primary text-primary-foreground'
-          : 'bg-secondary text-secondary-foreground'
-      )}
-      aria-hidden="true"
-    >
-      {isUser ? (
-        <User className="w-4 h-4" />
-      ) : (
-        <Bot className="w-4 h-4" />
-      )}
-    </div>
-  );
-}
 
 /**
  * Renders a single chat message with user/assistant styling.
+ * User messages: beige/tan bubble aligned right
+ * Assistant messages: plain text on white/transparent background
  * Supports basic markdown-like formatting for assistant messages.
  */
 export const Message = memo(function Message({
   message,
   className,
 }: MessageProps): ReactElement {
-  const { role, content, timestamp, status } = message;
+  const { role, content, status } = message;
   const isUser = role === 'user';
 
   const formattedContent = useMemo(() => {
@@ -209,65 +186,50 @@ export const Message = memo(function Message({
     return renderFormattedText(content);
   }, [content, isUser]);
 
-  return (
-    <div
-      className={cn(
-        'flex gap-3 py-4',
-        isUser && 'flex-row-reverse',
-        className
-      )}
-      role="article"
-      aria-label={`${role} message`}
-    >
-      <MessageAvatar role={role} />
-
+  // User message: beige bubble aligned right
+  if (isUser) {
+    return (
       <div
-        className={cn(
-          'flex-1 min-w-0',
-          isUser && 'flex flex-col items-end'
-        )}
+        className={cn('flex justify-end py-2 px-4', className)}
+        role="article"
+        aria-label="User message"
       >
-        {/* Message header */}
         <div
           className={cn(
-            'flex items-center gap-2 mb-1',
-            isUser && 'flex-row-reverse'
-          )}
-        >
-          <span className="text-sm font-medium">
-            {isUser ? 'You' : 'Claude'}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatTimestamp(timestamp)}
-          </span>
-        </div>
-
-        {/* Message content */}
-        <div
-          className={cn(
-            'rounded-lg px-4 py-2 max-w-[85%]',
-            isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground',
+            'rounded-2xl px-4 py-3 max-w-[80%]',
+            'bg-[#E8E4D9] text-cowork-text',
             status === 'error' && 'border border-destructive'
           )}
         >
-          {isUser ? (
-            <p className="whitespace-pre-wrap break-words">{content}</p>
-          ) : (
-            <div className="prose prose-sm dark:prose-invert max-w-none break-words">
-              {formattedContent}
-            </div>
-          )}
+          <p className="whitespace-pre-wrap break-words text-sm">{content}</p>
         </div>
-
-        {/* Error indicator */}
-        {status === 'error' && (
-          <span className="text-xs text-destructive mt-1">
-            Message failed to complete
-          </span>
-        )}
       </div>
+    );
+  }
+
+  // Assistant message: plain text, no bubble
+  return (
+    <div
+      className={cn('py-2 px-4', className)}
+      role="article"
+      aria-label="Assistant message"
+    >
+      <div
+        className={cn(
+          'text-cowork-text text-sm',
+          status === 'error' && 'text-destructive'
+        )}
+      >
+        <div className="prose prose-sm dark:prose-invert max-w-none break-words">
+          {formattedContent}
+        </div>
+      </div>
+      {/* Error indicator */}
+      {status === 'error' && (
+        <span className="text-xs text-destructive mt-1 block">
+          Message failed to complete
+        </span>
+      )}
     </div>
   );
 });

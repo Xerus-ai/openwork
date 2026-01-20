@@ -5,49 +5,51 @@
  * Initializes the agent with tools, skills, and system prompt.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
-import { AgentConfig, AgentState } from "./types/index.js";
+import { AgentState } from "./types/index.js";
+import {
+  AgentInitializer,
+  createAgent,
+  createAgentSync,
+  AgentInitOptions,
+} from "./init/index.js";
+
+// Re-export initialization functions for convenience
+export {
+  AgentInitializer,
+  createAgent,
+  createAgentSync,
+  AgentInitOptions,
+} from "./init/index.js";
+
+// Re-export system prompt utilities
+export {
+  SystemPromptLoader,
+  extendSystemPrompt,
+  formatForApi,
+} from "./init/index.js";
+
+// Re-export types
+export * from "./types/index.js";
 
 /**
- * Creates a new Anthropic client instance.
- * Requires ANTHROPIC_API_KEY environment variable to be set.
+ * Initializes the agent with the given options.
+ * Loads system prompt from bundled resources.
+ * Returns an agent state object that can be used to interact with the agent.
  */
-function createClient(): Anthropic {
-  const apiKey = process.env["ANTHROPIC_API_KEY"];
-  if (!apiKey) {
-    throw new Error(
-      "ANTHROPIC_API_KEY environment variable is required. " +
-        "Set it to your Anthropic API key."
-    );
-  }
-  return new Anthropic({ apiKey });
+export async function initializeAgent(
+  options: AgentInitOptions = {}
+): Promise<AgentState> {
+  return createAgent(options);
 }
 
 /**
- * Default agent configuration.
+ * Initializes the agent synchronously.
+ * Useful for contexts where async initialization is not possible.
  */
-const defaultConfig: AgentConfig = {
-  model: "claude-sonnet-4-20250514",
-  maxTokens: 8192,
-  systemPrompt: "",
-};
-
-/**
- * Initializes the agent with the given configuration.
- * Returns an agent state object that can be used to interact with the agent.
- */
-export function initializeAgent(
-  config: Partial<AgentConfig> = {}
+export function initializeAgentSync(
+  options: AgentInitOptions = {}
 ): AgentState {
-  const mergedConfig: AgentConfig = { ...defaultConfig, ...config };
-  const client = createClient();
-
-  return {
-    client,
-    config: mergedConfig,
-    conversationHistory: [],
-    isRunning: false,
-  };
+  return createAgentSync(options);
 }
 
 /**
@@ -57,10 +59,24 @@ async function main(): Promise<void> {
   console.log("Claude Cowork Agent initialized");
   console.log("Agent SDK version: @anthropic-ai/sdk");
 
-  const agentState = initializeAgent();
+  const initializer = new AgentInitializer();
+  const result = await initializer.initialize();
+
   console.log("Agent state created successfully");
-  console.log(`Model: ${agentState.config.model}`);
-  console.log(`Max tokens: ${agentState.config.maxTokens}`);
+  console.log(`Model: ${result.state.config.model}`);
+  console.log(`Max tokens: ${result.state.config.maxTokens}`);
+  console.log(`System prompt loaded: ${result.systemPromptLoaded}`);
+
+  if (result.systemPromptPath) {
+    console.log(`System prompt path: ${result.systemPromptPath}`);
+  }
+
+  if (result.warnings.length > 0) {
+    console.log("Warnings:", result.warnings);
+  }
+
+  const promptLength = result.state.config.systemPrompt.length;
+  console.log(`System prompt length: ${promptLength} characters`);
 }
 
 // Run main function when executed directly

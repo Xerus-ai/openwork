@@ -1,14 +1,15 @@
 {
-  "name": "claude-cowork",
+  "name": "openwork",
   "version": "1.0.0",
-  "description": "Cross-platform (Windows and macOS) agentic workspace integration for Claude",
+  "description": "Open-source agentic workspace for AI-powered file operations, document creation, and autonomous workflows",
   "main": "dist/electron/main.js",
   "type": "module",
   "scripts": {
     "dev": "vite --config app/vite.config.ts",
     "build": "npm run build:agent && npm run build:electron && npm run build:app",
     "build:agent": "tsc --project tsconfig.agent.json",
-    "build:electron": "tsc --project tsconfig.electron.json",
+    "build:electron": "tsc --project tsconfig.electron.json && npm run build:preload",
+    "build:preload": "node scripts/build-preload.mjs",
     "build:app": "vite build --config app/vite.config.ts",
     "build:watch": "tsc --watch",
     "start": "node dist/agent/index.js",
@@ -21,23 +22,31 @@
     "test": "vitest run"
   },
   "keywords": [
-    "claude",
     "ai",
     "agent",
-    "workspace"
+    "workspace",
+    "automation",
+    "electron",
+    "claude"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "Xerus AI",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xerus-ai/openwork.git"
+  },
+  "license": "MIT",
   "engines": {
     "node": ">=20.0.0"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.12",
     "@anthropic-ai/sdk": "^0.71.2",
+    "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-select": "^2.2.2",
     "@radix-ui/react-slot": "^1.2.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "docx": "^9.5.1",
+    "dotenv": "^17.2.3",
     "electron-store": "^11.0.2",
     "lightningcss": "^1.30.2",
     "lucide-react": "^0.511.0",
@@ -49,6 +58,38 @@
   },
   "optionalDependencies": {
     "@rollup/rollup-win32-x64-msvc": "^4.55.1"
+  },
+  "build": {
+    "appId": "ai.xerus.openwork",
+    "productName": "OpenWork",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "skills",
+        "to": "skills",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.icns"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -62,6 +103,7 @@
     "cross-env": "^7.0.3",
     "electron": "^40.0.0",
     "electron-builder": "^26.4.0",
+    "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",

@@ -67,21 +67,21 @@ export const ActionTile = memo(function ActionTile({
       onKeyDown={handleKeyDown}
       disabled={disabled}
       className={cn(
-        // Base styles
-        'flex items-center gap-3 w-full px-4 py-3',
-        'rounded-lg border border-border bg-card',
+        // Base styles - cowork design with rounded corners and subtle border
+        'flex items-center gap-3 w-full px-4 py-3.5',
+        'rounded-2xl border border-cowork-border bg-cowork-input-bg shadow-sm',
         // Text styles
-        'text-left text-sm font-medium text-card-foreground',
+        'text-left text-sm font-medium text-cowork-text',
         // Transitions
         'transition-all duration-150 ease-in-out',
         // Hover state
-        'hover:bg-accent hover:border-accent-foreground/20 hover:shadow-sm',
+        'hover:bg-cowork-hover hover:border-cowork-border-hover hover:shadow-md',
         // Focus state for accessibility
-        'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+        'focus:outline-none focus:ring-2 focus:ring-cowork-accent/30 focus:ring-offset-2',
         // Active state
         'active:scale-[0.98]',
         // Disabled state
-        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-card disabled:hover:shadow-none',
+        'disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-cowork-input-bg disabled:hover:shadow-sm',
         className
       )}
       aria-label={description || label}
@@ -90,8 +90,8 @@ export const ActionTile = memo(function ActionTile({
       <div
         className={cn(
           'flex items-center justify-center',
-          'w-10 h-10 rounded-md',
-          'bg-muted text-muted-foreground'
+          'w-10 h-10 rounded-xl',
+          'bg-cowork-card-bg border border-cowork-border text-cowork-text-muted'
         )}
       >
         <Icon className="w-5 h-5" aria-hidden="true" />

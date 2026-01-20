@@ -1,11 +1,25 @@
+/**
+ * App - Application root using CoworkLayout.
+ *
+ * Layout structure:
+ * - TaskSidebar on the left
+ * - Main content area in the center (Welcome screen or Chat + Preview)
+ * - State pane on the right
+ */
+
 import type { ReactElement, ReactNode } from 'react';
-import { Layout } from '@/components/Layout';
-import { ChatPane } from '@/components/ChatPane';
-import { ExecutionPane } from '@/components/ExecutionPane';
-import { StatePane } from '@/components/StatePane';
+import { CoworkLayout } from '@/components/CoworkLayout';
+import { StatePane, type ConnectorItem, type WorkingFile as StatePaneWorkingFile, type FolderEntry } from '@/components/StatePane';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ErrorProvider } from '@/hooks/useErrors';
+import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
+import { PendingTaskProvider } from '@/contexts/PendingTaskContext';
+import { SessionProvider, useSessionContext } from '@/contexts/SessionContext';
 import { GlobalErrorDisplay } from '@/components/GlobalErrorDisplay';
+import { useTodoList } from '@/hooks/useTodoList';
+import { useArtifacts } from '@/hooks/useArtifacts';
+import { useTaskSessions } from '@/hooks/useTaskSessions';
+import { Globe, Chrome, FileText, FileCode, FileSpreadsheet, File } from 'lucide-react';
 
 /**
  * Pane-specific error fallback component.
@@ -18,8 +32,8 @@ function PaneErrorFallback({
   onRetry: () => void;
 }): ReactElement {
   return (
-    <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-muted/50 p-4 text-center">
-      <div className="text-destructive">
+    <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-cowork-hover p-4 text-center">
+      <div className="text-red-500">
         <svg
           className="h-12 w-12 mx-auto"
           fill="none"
@@ -35,14 +49,14 @@ function PaneErrorFallback({
         </svg>
       </div>
       <div>
-        <h3 className="font-medium text-foreground">{paneName} Error</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <h3 className="font-medium text-cowork-text">{paneName} Error</h3>
+        <p className="mt-1 text-sm text-cowork-text-muted">
           This section encountered an error.
         </p>
       </div>
       <button
         onClick={onRetry}
-        className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
+        className="rounded-lg bg-cowork-accent px-4 py-2 text-sm text-white hover:bg-cowork-accent-hover"
       >
         Try Again
       </button>
@@ -73,25 +87,111 @@ function WrappedPane({
 }
 
 /**
- * Inner app content with error boundaries for each pane.
+ * Gets the appropriate icon for a file based on its extension.
+ */
+function getFileIcon(filename: string): React.ComponentType<{ className?: string }> {
+  const ext = filename.split('.').pop()?.toLowerCase();
+  switch (ext) {
+    case 'ts':
+    case 'tsx':
+    case 'js':
+    case 'jsx':
+    case 'py':
+    case 'go':
+    case 'rs':
+      return FileCode;
+    case 'csv':
+    case 'xlsx':
+    case 'xls':
+      return FileSpreadsheet;
+    case 'md':
+    case 'txt':
+    case 'json':
+      return FileText;
+    default:
+      return File;
+  }
+}
+
+/**
+ * Gets the icon for an MCP connector based on its name.
+ */
+function getConnectorIcon(name: string): React.ComponentType<{ className?: string }> {
+  const lowerName = name.toLowerCase();
+  if (lowerName.includes('chrome') || lowerName.includes('browser')) {
+    return Chrome;
+  }
+  if (lowerName.includes('web') || lowerName.includes('search')) {
+    return Globe;
+  }
+  return Globe;
+}
+
+/**
+ * State pane wrapper that provides data from hooks.
+ * Uses per-session workspace instead of global workspace.
+ */
+function StatePaneWrapper(): ReactElement {
+  const { items: progressItems } = useTodoList();
+  const { artifacts, selectArtifact } = useArtifacts();
+  const { getActiveSessionWorkspace, getActiveSessionAttachments } = useTaskSessions();
+  const { mcpConnectors, workingFiles } = useSessionContext();
+
+  // Get workspace from active session (per-task workspace)
+  const { path: workspacePath, contents: workspaceContents } = getActiveSessionWorkspace();
+
+  // Get attachments from active session
+  const sessionAttachments = getActiveSessionAttachments();
+
+  // Pass the full workspace path to show in context section
+  const folders = workspacePath ? [workspacePath] : [];
+
+  // Map workspace contents to FolderEntry format
+  const folderContents: FolderEntry[] = workspaceContents.map((entry) => ({
+    name: entry.name,
+    path: entry.path,
+    isDirectory: entry.isDirectory,
+  }));
+
+  // Map MCP connectors to StatePane's ConnectorItem format
+  const connectors: ConnectorItem[] = mcpConnectors.map((connector) => ({
+    id: connector.id,
+    name: connector.name,
+    icon: getConnectorIcon(connector.name),
+    status: connector.status === 'connected' ? 'active' : 'inactive',
+  }));
+
+  // Map working files to StatePane's WorkingFile format
+  const mappedWorkingFiles: StatePaneWorkingFile[] = workingFiles.map((file) => ({
+    id: file.id,
+    name: file.name,
+    icon: getFileIcon(file.name),
+  }));
+
+  return (
+    <StatePane
+      progressItems={progressItems}
+      artifacts={artifacts}
+      folders={folders}
+      folderContents={folderContents}
+      connectors={connectors}
+      workingFiles={mappedWorkingFiles}
+      attachments={sessionAttachments}
+      onArtifactClick={selectArtifact}
+    />
+  );
+}
+
+/**
+ * Inner app content with the new CoworkLayout.
  */
 function AppContent(): ReactElement {
   return (
     <div className="h-screen w-screen overflow-hidden">
-      <Layout
-        chatPane={
-          <WrappedPane paneName="Chat">
-            <ChatPane />
-          </WrappedPane>
-        }
-        executionPane={
-          <WrappedPane paneName="Execution">
-            <ExecutionPane />
-          </WrappedPane>
-        }
+      <CoworkLayout
         statePane={
           <WrappedPane paneName="State">
-            <StatePane />
+            <StatePaneWrapper />
           </WrappedPane>
         }
       />
@@ -101,15 +201,20 @@ function AppContent(): ReactElement {
 }
 
 /**
- * Root React component for Claude Cowork.
- * Renders the three-pane layout with Chat, Execution, and State sections.
- * Wrapped with error handling providers.
+ * Root React component for Open Cowork.
+ * Uses CoworkLayout with TaskSidebar, main content, and StatePane.
  */
 function App(): ReactElement {
   return (
     <ErrorBoundary componentName="App">
       <ErrorProvider>
-        <AppContent />
+        <WorkspaceProvider>
+          <SessionProvider>
+            <PendingTaskProvider>
+              <AppContent />
+            </PendingTaskProvider>
+          </SessionProvider>
+        </WorkspaceProvider>
       </ErrorProvider>
     </ErrorBoundary>
   );

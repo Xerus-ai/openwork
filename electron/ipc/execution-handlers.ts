@@ -100,20 +100,30 @@ export const TOOL_CATEGORIES = {
   file_edit: 'file',
   str_replace: 'file',
   view: 'file',
+  read: 'file',
+  write: 'file',
+  edit: 'file',
+  multiedit: 'file',
+  notebookedit: 'file',
 
   // Shell commands
   bash: 'command',
   shell: 'command',
+  bashoutput: 'command',
+  killbash: 'command',
 
   // Web operations
   web_fetch: 'web',
   web_search: 'web',
+  webfetch: 'web',
+  websearch: 'web',
 
   // Task management
   task: 'task',
   todo_write: 'task',
   todo_update: 'task',
   todo_read: 'task',
+  todowrite: 'task',
 
   // User interaction
   ask_user_question: 'interaction',

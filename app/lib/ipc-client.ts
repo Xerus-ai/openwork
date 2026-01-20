@@ -14,6 +14,7 @@ import {
   AgentTodoUpdate,
   AgentArtifactCreated,
   AgentSkillLoaded,
+  AgentStatusUpdate,
   AgentError,
   FileAttachment,
   generateMessageId,
@@ -31,6 +32,7 @@ export interface AgentEventHandlers {
   onTodoUpdate?: (update: AgentTodoUpdate) => void;
   onArtifactCreated?: (artifact: AgentArtifactCreated) => void;
   onSkillLoaded?: (skill: AgentSkillLoaded) => void;
+  onStatusUpdate?: (status: AgentStatusUpdate) => void;
   onError?: (error: AgentError) => void;
 }
 
@@ -74,11 +76,17 @@ export class IpcClient {
 
   /**
    * Initialize the IPC client and set up event listeners.
+   * Can be called multiple times - will re-register listeners with new handlers.
+   * This is necessary for React StrictMode compatibility where the effect
+   * may run multiple times with different handler instances.
    */
   initialize(handlers: AgentEventHandlers = {}): void {
+    // If already initialized, clean up existing listeners first
+    // so we can re-register with the new handlers
     if (this.isInitialized) {
-      console.warn('[IpcClient] Already initialized');
-      return;
+      // Clean up existing listeners
+      this.cleanupFunctions.forEach((cleanup) => cleanup());
+      this.cleanupFunctions = [];
     }
 
     this.eventHandlers = handlers;
@@ -363,6 +371,7 @@ interface ElectronAgentAPI {
   onTodoUpdate: (callback: (update: AgentTodoUpdate) => void) => () => void;
   onArtifactCreated: (callback: (artifact: AgentArtifactCreated) => void) => () => void;
   onSkillLoaded: (callback: (skill: AgentSkillLoaded) => void) => () => void;
+  onStatusUpdate: (callback: (status: AgentStatusUpdate) => void) => () => void;
   onError: (callback: (error: AgentError) => void) => () => void;
 }
 
@@ -390,11 +399,14 @@ export function initializeIpcClient(handlers: AgentEventHandlers = {}): IpcClien
 
 /**
  * Clean up the IPC client.
+ * Note: We don't null out the singleton to allow reuse after React StrictMode
+ * cleanup/reinit cycles. The same instance will be reinitialized.
  */
 export function cleanupIpcClient(): void {
   if (ipcClient) {
     ipcClient.cleanup();
-    ipcClient = null;
+    // Don't set ipcClient = null - allow the same instance to be reused
+    // This prevents issues with React StrictMode double-mounting
   }
 }
 

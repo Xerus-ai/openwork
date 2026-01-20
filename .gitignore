@@ -36,10 +36,30 @@ out/
 build/
 release/
 
-# Package locks (optional, comment out if you want to track)
-# package-lock.json
-
 # Temporary files
 tmp/
 temp/
 .tmp/
+
+# Cache directories
+.cache/
+.electron-cache/
+.npm-cache/
+
+# Local config
+.gitconfig
+.claude/
+
+# Internal development documents
+INSTRUCTIONS.md
+PLAN.md
+TODO.md
+prd.md
+system_prompt.md
+BOOTSTRAP-SUMMARY.md
+
+# UI reference images (copyrighted)
+ui_ref*.jpg
+
+# Internal task tracking
+docs/tasks/

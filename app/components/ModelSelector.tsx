@@ -6,7 +6,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui';
 import {
   useModel,
@@ -23,18 +22,15 @@ export interface ModelSelectorProps {
 }
 
 /**
- * Model selector dropdown for choosing between Claude models.
- * Persists selection to localStorage and displays model name and description.
- *
- * Available models:
- * - Sonnet 4.5: Fast and efficient for most tasks
- * - Opus 4.5: Most capable for complex reasoning
+ * Model selector dropdown for choosing AI models.
+ * Persists selection to localStorage.
+ * Shows only model name when selected, full details in dropdown.
  */
 export const ModelSelector = memo(function ModelSelector({
   className,
   disabled = false,
 }: ModelSelectorProps): ReactElement {
-  const { selectedModel, setModel } = useModel();
+  const { selectedModel, modelConfig, setModel } = useModel();
 
   /**
    * Handles model selection change.
@@ -50,17 +46,17 @@ export const ModelSelector = memo(function ModelSelector({
       disabled={disabled}
     >
       <SelectTrigger
-        className={cn('w-[160px] h-8 text-sm', className)}
-        aria-label="Select Claude model"
+        className={cn('w-[180px] h-8 text-sm', className)}
+        aria-label="Select AI model"
       >
-        <SelectValue placeholder="Select model" />
+        <span className="truncate">{modelConfig.name}</span>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="max-h-[300px]">
         {AVAILABLE_MODELS.map((model) => (
           <SelectItem
             key={model.id}
             value={model.id}
-            className="flex flex-col items-start"
+            className="flex flex-col items-start py-2"
           >
             <div className="flex flex-col gap-0.5">
               <span className="font-medium">{model.name}</span>

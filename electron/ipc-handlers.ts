@@ -26,6 +26,11 @@ import {
   clearSavedWorkspace,
   validateWorkspacePath,
 } from './config/index.js';
+import {
+  getConfig,
+  setConfig,
+} from './config/app-config.js';
+import type { AppSettings } from './types.js';
 
 // Store reference to main window for download handlers
 let mainWindowRef: (() => BrowserWindow | null) | null = null;
@@ -42,6 +47,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerWorkspaceHandlers(getMainWindow);
   registerFileHandlers();
   registerDownloadHandlers();
+  registerSettingsHandlers();
 }
 
 /**
@@ -454,6 +460,71 @@ function registerDownloadHandlers(): void {
 }
 
 /**
+ * Register settings handlers for app configuration.
+ */
+function registerSettingsHandlers(): void {
+  // Get all settings
+  ipcMain.handle(
+    IpcChannels.SETTINGS_GET,
+    async (): Promise<AppSettings> => {
+      return {
+        openRouterApiKey: getConfig('openRouterApiKey'),
+        userName: getConfig('userName'),
+      };
+    }
+  );
+
+  // Get API key
+  ipcMain.handle(
+    IpcChannels.SETTINGS_GET_API_KEY,
+    async (): Promise<string | null> => {
+      return getConfig('openRouterApiKey');
+    }
+  );
+
+  // Set API key
+  ipcMain.handle(
+    IpcChannels.SETTINGS_SET_API_KEY,
+    async (_event, key: string | null): Promise<void> => {
+      setConfig('openRouterApiKey', key);
+
+      // Update environment variables for Agent SDK
+      if (key) {
+        // For OpenRouter, set AUTH_TOKEN and BASE_URL
+        process.env['ANTHROPIC_AUTH_TOKEN'] = key;
+        process.env['ANTHROPIC_BASE_URL'] = 'https://openrouter.ai/api';
+        // Clear ANTHROPIC_API_KEY to avoid conflicts
+        delete process.env['ANTHROPIC_API_KEY'];
+      } else {
+        // Clear all API-related env vars
+        delete process.env['ANTHROPIC_AUTH_TOKEN'];
+        delete process.env['ANTHROPIC_BASE_URL'];
+        delete process.env['ANTHROPIC_API_KEY'];
+      }
+
+      console.log('[IPC] API key updated');
+    }
+  );
+
+  // Get user name
+  ipcMain.handle(
+    IpcChannels.SETTINGS_GET_USER_NAME,
+    async (): Promise<string> => {
+      return getConfig('userName');
+    }
+  );
+
+  // Set user name
+  ipcMain.handle(
+    IpcChannels.SETTINGS_SET_USER_NAME,
+    async (_event, name: string): Promise<void> => {
+      setConfig('userName', name);
+      console.log('[IPC] User name updated:', name);
+    }
+  );
+}
+
+/**
  * Remove all IPC handlers.
  * Call this during app cleanup.
  */
@@ -473,6 +544,11 @@ export function removeIpcHandlers(): void {
     IpcChannels.FILE_LIST,
     IpcChannels.FILE_DOWNLOAD,
     IpcChannels.FILE_DOWNLOAD_ALL,
+    IpcChannels.SETTINGS_GET,
+    IpcChannels.SETTINGS_GET_API_KEY,
+    IpcChannels.SETTINGS_SET_API_KEY,
+    IpcChannels.SETTINGS_GET_USER_NAME,
+    IpcChannels.SETTINGS_SET_USER_NAME,
   ];
 
   channels.forEach((channel) => {

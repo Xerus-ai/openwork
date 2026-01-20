@@ -7,17 +7,18 @@ import {
   type AgentChatActions,
   type ChatMessage,
   type PendingQuestion,
+  type ToolExecution,
 } from '@/hooks/useAgentChat';
 import { useWorkspace } from '@/hooks/useWorkspace';
+import { usePendingTask } from '@/contexts/PendingTaskContext';
 import { Message } from './Message';
 import { StreamingMessage } from './StreamingMessage';
 import { ChatInput } from './ChatInput';
-import { QuickActions } from './QuickActions';
 import { QuestionPrompt } from './QuestionPrompt';
+import { ToolCallGroup } from './ToolCallBlock';
 import { ChevronDown, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui';
 import type { AttachedFile } from '@/hooks/useFileUpload';
-import { ModelSelector } from './ModelSelector';
 import type { FileAttachment } from '@/lib/ipc-types';
 
 /**
@@ -25,6 +26,16 @@ import type { FileAttachment } from '@/lib/ipc-types';
  */
 export interface ChatPaneProps {
   className?: string;
+  /** Active session ID for syncing */
+  activeSessionId?: string | null;
+  /** Messages from the active session */
+  sessionMessages?: ChatMessage[];
+  /** Callback when messages change (for syncing back to session) */
+  onMessagesChange?: (messages: ChatMessage[]) => void;
+  /** Workspace path for the current session */
+  sessionWorkspacePath?: string | null;
+  /** Callback when user wants to change workspace */
+  onWorkspaceChange?: () => void;
 }
 
 /**
@@ -33,9 +44,9 @@ export interface ChatPaneProps {
 interface MessageListProps {
   messages: ChatMessage[];
   streamingMessageId: string | null;
+  toolExecutions: ToolExecution[];
   onScrollToBottom: () => void;
   isAtBottom: boolean;
-  onActionSelect: (prompt: string) => void;
 }
 
 /**
@@ -57,13 +68,14 @@ const ESTIMATED_MESSAGE_HEIGHT = 100;
 
 /**
  * Renders the list of messages with virtualization for performance.
+ * Tool executions are displayed inline after assistant messages.
  */
 const MessageList = memo(function MessageList({
   messages,
   streamingMessageId,
+  toolExecutions,
   onScrollToBottom,
   isAtBottom,
-  onActionSelect,
 }: MessageListProps): ReactElement {
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: messages.length });
@@ -128,7 +140,7 @@ const MessageList = memo(function MessageList({
   return (
     <div
       ref={containerRef}
-      className="flex-1 overflow-y-auto px-4 scroll-smooth"
+      className="flex-1 overflow-y-auto scroll-smooth"
       role="log"
       aria-label="Chat messages"
       aria-live="polite"
@@ -138,24 +150,37 @@ const MessageList = memo(function MessageList({
         <div style={{ height: topSpacerHeight }} aria-hidden="true" />
       )}
 
-      {/* Message list */}
-      {visibleMessages.length === 0 ? (
-        <EmptyState onActionSelect={onActionSelect} />
-      ) : (
-        visibleMessages.map((message) => {
+      {/* Message list with inline tool executions */}
+      {visibleMessages.length > 0 && (
+        visibleMessages.map((message, index) => {
           const isStreaming = message.id === streamingMessageId;
-          return isStreaming ? (
-            <StreamingMessage
-              key={message.id}
-              message={message}
-            />
-          ) : (
-            <Message
-              key={message.id}
-              message={message}
-            />
+          const isLastAssistantMessage = message.role === 'assistant' &&
+            (index === visibleMessages.length - 1 ||
+             visibleMessages[index + 1]?.role === 'user');
+
+          return (
+            <div key={message.id}>
+              {isStreaming ? (
+                <StreamingMessage message={message} />
+              ) : (
+                <Message message={message} />
+              )}
+              {/* Show tool executions after the last assistant message (or streaming) */}
+              {(isLastAssistantMessage || isStreaming) && toolExecutions.length > 0 && (
+                <div className="px-4 pb-2">
+                  <ToolCallGroup executions={toolExecutions} />
+                </div>
+              )}
+            </div>
           );
         })
+      )}
+
+      {/* Show tool executions even when there are no messages yet but tools are running */}
+      {visibleMessages.length === 0 && toolExecutions.length > 0 && (
+        <div className="px-4 py-2">
+          <ToolCallGroup executions={toolExecutions} />
+        </div>
       )}
 
       {/* Bottom spacer for virtualization */}
@@ -180,35 +205,6 @@ const MessageList = memo(function MessageList({
 });
 
 /**
- * Props for the EmptyState component.
- */
-interface EmptyStateProps {
-  onActionSelect: (prompt: string) => void;
-}
-
-/**
- * Empty state shown when there are no messages.
- * Displays a welcome message and quick action tiles.
- */
-function EmptyState({ onActionSelect }: EmptyStateProps): ReactElement {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-      <h2 className="text-2xl font-semibold mb-2">
-        Let's knock something off your list
-      </h2>
-      <p className="text-sm text-muted-foreground max-w-md mb-8">
-        Choose a quick action below or type a message to get started.
-      </p>
-      <QuickActions
-        onActionSelect={onActionSelect}
-        actionCount={6}
-        className="mb-4"
-      />
-    </div>
-  );
-}
-
-/**
  * Chat pane component displaying message history with streaming support.
  * Features:
  * - Message history with user/assistant distinction
@@ -222,6 +218,11 @@ function EmptyState({ onActionSelect }: EmptyStateProps): ReactElement {
  */
 export const ChatPane = memo(function ChatPane({
   className,
+  activeSessionId,
+  sessionMessages,
+  onMessagesChange,
+  sessionWorkspacePath,
+  onWorkspaceChange,
 }: ChatPaneProps): ReactElement {
   const agentChat = useAgentChat();
   const {
@@ -234,47 +235,131 @@ export const ChatPane = memo(function ChatPane({
     currentQuestion,
     isSubmittingAnswer,
     questionError,
+    toolExecutions,
+    processingStatus,
+    statusMessage,
     sendMessage,
     initializeAgent,
     stopAgent,
     clearError,
     submitQuestionAnswer,
     skipQuestion,
+    loadMessages,
   } = agentChat;
 
+  // Track the last session ID to detect session changes
+  const lastSessionIdRef = useRef<string | null>(null);
+
+  /**
+   * Load session messages when activeSessionId changes.
+   */
+  useEffect(() => {
+    if (activeSessionId && activeSessionId !== lastSessionIdRef.current) {
+      lastSessionIdRef.current = activeSessionId;
+      // Load messages from the session
+      if (sessionMessages) {
+        loadMessages(sessionMessages);
+      }
+    }
+  }, [activeSessionId, sessionMessages, loadMessages]);
+
+  /**
+   * Sync messages back to session when they change.
+   * Syncs immediately to ensure user messages appear right away.
+   */
+  useEffect(() => {
+    console.log('[ChatPane] Message sync effect - messages:', messages.length, 'hasCallback:', !!onMessagesChange, 'sessionId:', activeSessionId);
+    if (onMessagesChange && messages.length > 0) {
+      console.log('[ChatPane] Calling onMessagesChange with', messages.length, 'messages');
+      onMessagesChange(messages);
+    }
+  }, [messages, onMessagesChange, activeSessionId]);
+
   const { workspacePath, validationResult } = useWorkspace();
+  const { pendingTask, clearPendingTask } = usePendingTask();
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
-  const [selectedPrompt, setSelectedPrompt] = useState<string | undefined>(undefined);
+  // Track which pending task we've already sent to prevent double-sending
+  // when sendMessage callback changes during the effect
+  const lastSentTaskRef = useRef<number | null>(null);
+  // Track when we're processing a pending task to show loading state
+  const [isProcessingTask, setIsProcessingTask] = useState(false);
 
   /**
-   * Auto-initialize agent when workspace is ready.
+   * Converts AttachedFile to FileAttachment format for IPC.
+   * In Electron, File objects have a path property from file dialogs.
+   * Defined early so it can be used in effects below.
+   */
+  const convertAttachments = useCallback((files: AttachedFile[]): FileAttachment[] => {
+    return files.map((file) => ({
+      name: file.name,
+      path: file.filePath || file.name, // Use actual file path if available
+      mimeType: file.type,
+      size: file.size,
+    }));
+  }, []);
+
+  /**
+   * Auto-initialize agent when ready.
+   * Workspace is optional - agent will use default artifacts folder if not provided.
    */
   useEffect(() => {
-    if (workspacePath && validationResult?.valid && !isAgentInitialized && connectionState === 'disconnected') {
+    // Initialize if not yet initialized and not currently connecting
+    // Workspace validation only matters if a workspace is actually selected
+    const canInitialize = !isAgentInitialized && connectionState === 'disconnected';
+    const workspaceValid = !workspacePath || !validationResult || validationResult.valid;
+
+    if (canInitialize && workspaceValid) {
       initializeAgent();
     }
   }, [workspacePath, validationResult, isAgentInitialized, connectionState, initializeAgent]);
 
   /**
-   * Handles quick action selection by setting the input prompt.
-   * Uses a key to ensure React re-renders when the same action is clicked twice.
+   * Send pending task when it's set from WelcomeScreen.
+   * This handles the transition from WelcomeScreen to ChatPane.
+   * We send even if not connected - sendMessage will handle showing appropriate errors.
+   * Uses lastSentTaskRef to prevent double-sending when sendMessage callback changes.
    */
-  const handleActionSelect = useCallback((prompt: string): void => {
-    // Append a timestamp to force re-render if the same prompt is selected
-    setSelectedPrompt(`${prompt}__${Date.now()}`);
-  }, []);
+  useEffect(() => {
+    if (pendingTask && !isStreaming) {
+      // Check if we've already sent this specific task (by timestamp)
+      if (lastSentTaskRef.current === pendingTask.timestamp) {
+        return;
+      }
+      // Mark this task as sent BEFORE calling sendMessage to prevent race conditions
+      lastSentTaskRef.current = pendingTask.timestamp;
+      // Show loading state while processing
+      setIsProcessingTask(true);
+      // Convert attachments if present
+      const fileAttachments = pendingTask.attachments
+        ? convertAttachments(pendingTask.attachments)
+        : undefined;
+      // Send the pending task message with attachments (will show error if agent unavailable)
+      sendMessage(pendingTask.message, fileAttachments);
+      // NOTE: Don't clear pendingTask here! Clearing it immediately causes showWelcome
+      // to become true, which unmounts ChatPane before agent response arrives.
+      // pendingTask will be cleared when messages arrive (see effect below).
+      console.log('[ChatPane] Sent pending task:', pendingTask.message, 'attachments:', pendingTask.attachments?.length ?? 0);
+    }
+  }, [pendingTask, isStreaming, sendMessage, convertAttachments]);
 
   /**
-   * Extracts the actual prompt text from the selected prompt (removes timestamp).
+   * Clear processing state and pending task when messages arrive.
+   * This ensures ChatPane stays mounted until messages are received.
    */
-  const getPromptText = useCallback((prompt: string | undefined): string | undefined => {
-    if (!prompt) return undefined;
-    const parts = prompt.split('__');
-    parts.pop(); // Remove timestamp
-    return parts.join('__');
-  }, []);
+  useEffect(() => {
+    if (messages.length > 0) {
+      if (isProcessingTask) {
+        setIsProcessingTask(false);
+      }
+      // Clear pending task now that messages have arrived
+      if (pendingTask) {
+        clearPendingTask();
+        console.log('[ChatPane] Cleared pending task after messages arrived');
+      }
+    }
+  }, [messages.length, isProcessingTask, pendingTask, clearPendingTask]);
 
   /**
    * Scrolls to the bottom of the message list.
@@ -299,19 +384,6 @@ export const ChatPane = memo(function ChatPane({
     const { scrollTop, scrollHeight, clientHeight } = container;
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
     setIsAtBottom(distanceFromBottom < SCROLL_THRESHOLD);
-  }, []);
-
-  /**
-   * Converts AttachedFile to FileAttachment format for IPC.
-   * In Electron, File objects have a path property from file dialogs.
-   */
-  const convertAttachments = useCallback((files: AttachedFile[]): FileAttachment[] => {
-    return files.map((file) => ({
-      name: file.name,
-      path: file.filePath || file.name, // Use actual file path if available
-      mimeType: file.type,
-      size: file.size,
-    }));
   }, []);
 
   /**
@@ -382,14 +454,16 @@ export const ChatPane = memo(function ChatPane({
   const isInputDisabled = isStreaming || connectionState === 'connecting' || currentQuestion !== null;
 
   return (
-    <div className={cn('flex flex-col h-full', className)}>
-      {/* Header with model selector and connection status */}
-      <ChatHeader
-        messageCount={messages.length}
-        isStreaming={isStreaming}
-        connectionState={connectionState}
-        onRetryConnection={initializeAgent}
-      />
+    <div className={cn('flex flex-col h-full bg-cowork-bg', className)}>
+      {/* Connection status indicator - minimal, only shown when not connected */}
+      {connectionState !== 'connected' && (
+        <div className="flex-shrink-0 px-4 py-2 border-b border-cowork-border bg-cowork-card-bg">
+          <ConnectionIndicator
+            state={connectionState}
+            onRetry={initializeAgent}
+          />
+        </div>
+      )}
 
       {/* Error banner */}
       {lastError && (
@@ -401,13 +475,29 @@ export const ChatPane = memo(function ChatPane({
         ref={scrollContainerRef}
         className="flex-1 overflow-y-auto"
       >
-        <MessageList
-          messages={messages}
-          streamingMessageId={streamingMessageId}
-          onScrollToBottom={scrollToBottom}
-          isAtBottom={isAtBottom}
-          onActionSelect={handleActionSelect}
-        />
+        {/* Show status indicator when processing */}
+        {processingStatus && processingStatus !== 'idle' && (
+          <div className="flex items-center gap-2 px-4 py-3 border-b border-cowork-border bg-cowork-card-bg">
+            <Loader2 className="w-4 h-4 animate-spin text-cowork-accent" />
+            <p className="text-sm text-cowork-text-muted">{statusMessage || 'Processing...'}</p>
+          </div>
+        )}
+
+        {/* Show loading state when processing pending task with no messages yet */}
+        {messages.length === 0 && isProcessingTask && !processingStatus ? (
+          <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+            <Loader2 className="w-6 h-6 animate-spin text-cowork-text-muted mb-2" />
+            <p className="text-sm text-cowork-text-muted">Processing your request...</p>
+          </div>
+        ) : (
+          <MessageList
+            messages={messages}
+            streamingMessageId={streamingMessageId}
+            toolExecutions={toolExecutions}
+            onScrollToBottom={scrollToBottom}
+            isAtBottom={isAtBottom}
+          />
+        )}
 
         {/* Question prompt - displayed at the end of message list */}
         {currentQuestion && (
@@ -428,8 +518,8 @@ export const ChatPane = memo(function ChatPane({
         onSend={handleSend}
         disabled={isInputDisabled}
         placeholder={getPlaceholderText(connectionState, workspacePath, currentQuestion)}
-        initialMessage={getPromptText(selectedPrompt)}
-        key={selectedPrompt}
+        workspacePath={sessionWorkspacePath}
+        onWorkspaceChange={onWorkspaceChange}
       />
 
       {/* Stop button when streaming */}
@@ -457,10 +547,6 @@ function getPlaceholderText(
   workspacePath: string | null,
   currentQuestion: PendingQuestion | null
 ): string {
-  if (!workspacePath) {
-    return 'Select a workspace folder to start...';
-  }
-
   if (currentQuestion) {
     return 'Please answer the question above...';
   }
@@ -473,48 +559,11 @@ function getPlaceholderText(
     case 'disconnected':
       return 'Initializing...';
     default:
-      return 'Type a message...';
+      // Show hint about workspace if not selected
+      return workspacePath ? 'Type a message...' : 'Type a message (using default workspace)...';
   }
 }
 
-/**
- * Props for the ChatHeader component.
- */
-interface ChatHeaderProps {
-  messageCount: number;
-  isStreaming: boolean;
-  connectionState: AgentChatState['connectionState'];
-  onRetryConnection: () => void;
-}
-
-/**
- * Header for the chat pane showing model selector, connection status, and message count.
- */
-function ChatHeader({
-  messageCount,
-  isStreaming,
-  connectionState,
-  onRetryConnection,
-}: ChatHeaderProps): ReactElement {
-  return (
-    <div className="flex-shrink-0 px-4 py-3 border-b">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ModelSelector disabled={isStreaming || connectionState === 'connecting'} />
-          <ConnectionIndicator
-            state={connectionState}
-            onRetry={onRetryConnection}
-          />
-        </div>
-        {messageCount > 0 && (
-          <span className="text-xs text-muted-foreground">
-            {messageCount} message{messageCount !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
 
 /**
  * Props for the ConnectionIndicator component.
@@ -578,9 +627,9 @@ interface ErrorBannerProps {
  */
 function ErrorBanner({ error, onDismiss }: ErrorBannerProps): ReactElement {
   return (
-    <div className="flex-shrink-0 px-4 py-2 bg-destructive/10 border-b border-destructive/20">
+    <div className="flex-shrink-0 px-4 py-2 bg-red-50 border-b border-red-200">
       <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-2 text-sm text-destructive">
+        <div className="flex items-center gap-2 text-sm text-red-600">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
           <span className="font-medium">{error.code}:</span>
           <span className="truncate">{error.message}</span>
@@ -589,7 +638,7 @@ function ErrorBanner({ error, onDismiss }: ErrorBannerProps): ReactElement {
           variant="ghost"
           size="sm"
           onClick={onDismiss}
-          className="flex-shrink-0 h-6 px-2 text-xs"
+          className="flex-shrink-0 h-6 px-2 text-xs text-red-600 hover:text-red-700 hover:bg-red-100"
         >
           Dismiss
         </Button>

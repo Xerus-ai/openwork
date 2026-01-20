@@ -16,6 +16,7 @@ import {
   DownloadAllRequest,
   DownloadAllResult,
   SavedWorkspaceData,
+  AppSettings,
 } from './types.js';
 import {
   AgentChannels,
@@ -32,6 +33,7 @@ import {
   AgentTodoUpdate,
   AgentArtifactCreated,
   AgentSkillLoaded,
+  AgentStatusUpdate,
   AgentError,
   ElectronAgentAPI,
 } from './ipc/message-types.js';
@@ -124,6 +126,27 @@ const electronAPI: ElectronAPI = {
 
   downloadAllArtifacts: async (request: DownloadAllRequest): Promise<DownloadAllResult> => {
     return ipcRenderer.invoke(IpcChannels.FILE_DOWNLOAD_ALL, request);
+  },
+
+  // Settings operations
+  getSettings: async (): Promise<AppSettings> => {
+    return ipcRenderer.invoke(IpcChannels.SETTINGS_GET);
+  },
+
+  getApiKey: async (): Promise<string | null> => {
+    return ipcRenderer.invoke(IpcChannels.SETTINGS_GET_API_KEY);
+  },
+
+  setApiKey: async (key: string | null): Promise<void> => {
+    return ipcRenderer.invoke(IpcChannels.SETTINGS_SET_API_KEY, key);
+  },
+
+  getUserName: async (): Promise<string> => {
+    return ipcRenderer.invoke(IpcChannels.SETTINGS_GET_USER_NAME);
+  },
+
+  setUserName: async (name: string): Promise<void> => {
+    return ipcRenderer.invoke(IpcChannels.SETTINGS_SET_USER_NAME, name);
   },
 
   // Platform info
@@ -242,6 +265,17 @@ const electronAgentAPI: ElectronAgentAPI = {
     ipcRenderer.on(AgentChannels.AGENT_SKILL_LOADED, handler);
     return () => {
       ipcRenderer.removeListener(AgentChannels.AGENT_SKILL_LOADED, handler);
+    };
+  },
+
+  // Status update events
+  onStatusUpdate: (callback: (status: AgentStatusUpdate) => void): (() => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: AgentStatusUpdate) => {
+      callback(status);
+    };
+    ipcRenderer.on(AgentChannels.AGENT_STATUS_UPDATE, handler);
+    return () => {
+      ipcRenderer.removeListener(AgentChannels.AGENT_STATUS_UPDATE, handler);
     };
   },
 

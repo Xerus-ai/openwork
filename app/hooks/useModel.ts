@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from 'react';
 
 /**
- * Available Claude model identifiers.
+ * Available model identifiers (Claude + OpenRouter models).
  */
-export type ModelId = 'claude-sonnet-4-5-20250514' | 'claude-opus-4-5-20250514';
+export type ModelId =
+  | 'claude-sonnet-4-5-20250514'
+  | 'claude-opus-4-5-20250514'
+  | 'moonshotai/kimi-k2-0905:exacto'
+  | 'deepseek/deepseek-v3.1-terminus:exacto'
+  | 'z-ai/glm-4.6:exacto'
+  | 'openai/gpt-oss-120b:exacto'
+  | 'qwen/qwen3-coder:exacto'
+  | 'openai/gpt-5.2-codex'
+  | 'google/gemini-3-flash-preview'
+  | 'mistralai/mistral-small-creative'
+  | 'google/gemini-3-pro-preview';
 
 /**
  * Model configuration with display information.
@@ -18,6 +29,7 @@ export interface ModelConfig {
  * All available models with their configurations.
  */
 export const AVAILABLE_MODELS: ModelConfig[] = [
+  // Anthropic models
   {
     id: 'claude-sonnet-4-5-20250514',
     name: 'Sonnet 4.5',
@@ -27,6 +39,52 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     id: 'claude-opus-4-5-20250514',
     name: 'Opus 4.5',
     description: 'Most capable for complex reasoning',
+  },
+  // OpenRouter models
+  {
+    id: 'openai/gpt-5.2-codex',
+    name: 'GPT-5.2 Codex',
+    description: 'OpenAI code generation model',
+  },
+  {
+    id: 'google/gemini-3-pro-preview',
+    name: 'Gemini 3 Pro',
+    description: 'Google advanced reasoning model',
+  },
+  {
+    id: 'google/gemini-3-flash-preview',
+    name: 'Gemini 3 Flash',
+    description: 'Google fast multimodal model',
+  },
+  {
+    id: 'moonshotai/kimi-k2-0905:exacto',
+    name: 'Kimi K2',
+    description: 'Moonshot AI reasoning model',
+  },
+  {
+    id: 'deepseek/deepseek-v3.1-terminus:exacto',
+    name: 'DeepSeek v3.1 Terminus',
+    description: 'DeepSeek advanced coding model',
+  },
+  {
+    id: 'z-ai/glm-4.6:exacto',
+    name: 'GLM 4.6',
+    description: 'Zhipu AI bilingual model',
+  },
+  {
+    id: 'openai/gpt-oss-120b:exacto',
+    name: 'GPT-OSS 120B',
+    description: 'OpenAI open-source 120B model',
+  },
+  {
+    id: 'qwen/qwen3-coder:exacto',
+    name: 'Qwen3 Coder',
+    description: 'Alibaba code specialist model',
+  },
+  {
+    id: 'mistralai/mistral-small-creative',
+    name: 'Mistral Small Creative',
+    description: 'Mistral creative writing model',
   },
 ];
 

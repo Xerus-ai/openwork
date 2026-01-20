@@ -7,7 +7,9 @@
  * by a separate agent service that listens to bridge events.
  */
 
-import { ipcMain, BrowserWindow } from 'electron';
+import { ipcMain, BrowserWindow, app } from 'electron';
+import * as path from 'path';
+import * as fs from 'fs';
 import { EventEmitter } from 'events';
 import {
   AgentChannels,
@@ -25,6 +27,8 @@ import {
   AgentTodoUpdate,
   AgentArtifactCreated,
   AgentSkillLoaded,
+  AgentStatusUpdate,
+  ProcessingStatus,
   AgentError,
   AgentErrorCode,
   TodoItem,
@@ -163,18 +167,25 @@ export class AgentBridge extends EventEmitter {
       // Store main window reference
       this.mainWindow = getMainWindow();
 
-      // Validate workspace path
-      if (!request.workspacePath) {
-        return this.createErrorResponse(request.id, 'Workspace path is required');
+      // Use provided workspace or default to app's artifacts folder
+      let workspacePath = request.workspacePath;
+      if (!workspacePath) {
+        // Create a default artifacts folder in user data directory
+        const defaultArtifactsPath = path.join(app.getPath('userData'), 'artifacts');
+        if (!fs.existsSync(defaultArtifactsPath)) {
+          fs.mkdirSync(defaultArtifactsPath, { recursive: true });
+        }
+        workspacePath = defaultArtifactsPath;
+        console.log('[AgentBridge] No workspace provided, using default:', workspacePath);
       }
 
       // Update state
-      this.state.workspacePath = request.workspacePath;
+      this.state.workspacePath = workspacePath;
       this.state.model = request.model;
 
       // Emit init event for the agent service to handle
       this.emit('agent:init', {
-        workspacePath: request.workspacePath,
+        workspacePath,
         model: request.model,
         additionalInstructions: request.additionalInstructions,
       });
@@ -221,22 +232,29 @@ export class AgentBridge extends EventEmitter {
     console.log('[AgentBridge] Received message:', {
       contentLength: request.content.length,
       attachments: request.attachments?.length ?? 0,
+      currentState: { isRunning: this.state.isRunning, initialized: this.state.initialized },
     });
 
     // Validate agent is initialized
     if (!this.state.initialized) {
+      console.log('[AgentBridge] Rejecting: not initialized');
       this.sendError(request.id, 'AGENT_NOT_INITIALIZED', 'Agent has not been initialized');
       return { requestId: request.id };
     }
 
     // Check if agent is busy
     if (this.state.isRunning) {
+      console.log('[AgentBridge] Rejecting: already running');
       this.sendError(request.id, 'AGENT_BUSY', 'Agent is currently processing another request');
       return { requestId: request.id };
     }
 
     // Mark as running
+    console.log('[AgentBridge] Setting isRunning = true');
     this.state.isRunning = true;
+
+    // Send initial status update to indicate processing has started
+    this.sendStatusUpdate(request.id, 'processing', 'Processing your request...');
 
     // Emit message event for agent to handle
     this.emit('agent:message', {
@@ -297,6 +315,7 @@ export class AgentBridge extends EventEmitter {
    * Should be called by the agent service when done processing.
    */
   markComplete(): void {
+    console.log('[AgentBridge] markComplete() called, setting isRunning = false');
     this.state.isRunning = false;
   }
 
@@ -336,6 +355,8 @@ export class AgentBridge extends EventEmitter {
       usage,
     };
     this.sendToRenderer(AgentChannels.AGENT_MESSAGE_COMPLETE, complete);
+    // Send idle status to clear any status indicator
+    this.sendStatusUpdate(requestId, 'idle', '');
     this.markComplete();
   }
 
@@ -442,6 +463,20 @@ export class AgentBridge extends EventEmitter {
       skillPreview,
     };
     this.sendToRenderer(AgentChannels.AGENT_SKILL_LOADED, notification);
+  }
+
+  /**
+   * Send a processing status update to the renderer.
+   * Used to indicate what the agent is currently doing.
+   */
+  sendStatusUpdate(requestId: string, status: ProcessingStatus, message: string): void {
+    const update: AgentStatusUpdate = {
+      ...createBaseMessage(),
+      requestId,
+      status,
+      message,
+    };
+    this.sendToRenderer(AgentChannels.AGENT_STATUS_UPDATE, update);
   }
 
   /**

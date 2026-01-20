@@ -1,9 +1,10 @@
 /**
  * Chat IPC Handlers for Agent Communication.
- * Connects the AgentBridge to the actual Claude agent for message processing.
+ * Uses Claude Agent SDK for automatic tool execution and agentic loop.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { SDKMessage } from '@anthropic-ai/claude-agent-sdk';
 import { AgentBridge, getAgentBridge } from './agent-bridge.js';
 import {
   setCurrentRequestId,
@@ -15,6 +16,11 @@ import {
   initializeArtifactHandlers,
   cleanupArtifactHandlers,
 } from './artifact-handlers.js';
+import {
+  setExecutionRequestId,
+  broadcastToolUse,
+  broadcastToolResult,
+} from './execution-handlers.js';
 import {
   processAttachments,
   type FileAttachment,
@@ -31,36 +37,19 @@ export interface ChatHandlerConfig {
 }
 
 /**
- * Default configuration values.
- */
-const DEFAULT_CONFIG: ChatHandlerConfig = {
-  maxTokens: 8192,
-};
-
-/**
- * Message in the conversation history.
- */
-interface ConversationMessage {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-/**
  * ChatHandlerService manages the actual agent conversation.
- * Listens to AgentBridge events and processes messages through the Claude API.
+ * Uses Claude Agent SDK for automatic tool execution.
  */
 export class ChatHandlerService {
-  private config: ChatHandlerConfig;
   private bridge: AgentBridge;
-  private client: Anthropic | null = null;
-  private conversationHistory: ConversationMessage[] = [];
-  private systemPrompt: string = '';
+  private workspacePath: string = '';
+  private sessionId?: string;
   private currentModel: string = 'claude-sonnet-4-20250514';
   private isProcessing: boolean = false;
   private abortController: AbortController | null = null;
+  private additionalInstructions: string = '';
 
-  constructor(config: Partial<ChatHandlerConfig> = {}) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+  constructor(_config: Partial<ChatHandlerConfig> = {}) {
     this.bridge = getAgentBridge();
     this.setupEventHandlers();
   }
@@ -110,29 +99,19 @@ export class ChatHandlerService {
     model?: string;
     additionalInstructions?: string;
   }): Promise<void> {
-    console.log('[ChatHandlerService] Initializing agent...', {
+    console.log('[ChatHandlerService] Initializing agent with Agent SDK...', {
       workspace: data.workspacePath,
       model: data.model,
     });
 
     try {
-      // Get API key from environment
-      const apiKey = process.env['ANTHROPIC_API_KEY'];
-      if (!apiKey) {
-        throw new Error('ANTHROPIC_API_KEY environment variable is required');
-      }
-
-      // Create Anthropic client
-      this.client = new Anthropic({ apiKey });
-
-      // Store configuration
+      // Store workspace path for Agent SDK
+      this.workspacePath = data.workspacePath;
       this.currentModel = data.model || 'claude-sonnet-4-20250514';
+      this.additionalInstructions = data.additionalInstructions || '';
 
-      // Build system prompt
-      this.systemPrompt = this.buildSystemPrompt(data.workspacePath, data.additionalInstructions);
-
-      // Clear conversation history for new session
-      this.conversationHistory = [];
+      // Clear session for new initialization
+      this.sessionId = undefined;
 
       // Initialize TodoList handlers for progress tracking
       initializeTodoListHandlers();
@@ -143,7 +122,7 @@ export class ChatHandlerService {
       // Mark bridge as initialized
       this.bridge.setInitialized(true);
 
-      console.log('[ChatHandlerService] Agent initialized successfully');
+      console.log('[ChatHandlerService] Agent SDK initialized successfully');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Initialization failed';
       console.error('[ChatHandlerService] Initialization error:', message);
@@ -153,33 +132,7 @@ export class ChatHandlerService {
   }
 
   /**
-   * Build the system prompt for the agent.
-   */
-  private buildSystemPrompt(workspacePath: string, additionalInstructions?: string): string {
-    const basePrompt = `You are Claude Cowork, an AI assistant running in a desktop application.
-You help users with various tasks in their workspace.
-
-Current workspace: ${workspacePath}
-
-You have access to various tools to help users:
-- File operations (create, read, edit files)
-- Shell commands (cross-platform)
-- Web search and fetch
-- Task management
-
-Always be helpful, clear, and concise in your responses.
-When performing actions, explain what you're doing.
-If you encounter errors, explain them clearly and suggest solutions.`;
-
-    if (additionalInstructions) {
-      return `${basePrompt}\n\nAdditional Instructions:\n${additionalInstructions}`;
-    }
-
-    return basePrompt;
-  }
-
-  /**
-   * Handle incoming user messages.
+   * Handle incoming user messages using Agent SDK.
    */
   private async handleMessage(data: {
     requestId: string;
@@ -188,28 +141,29 @@ If you encounter errors, explain them clearly and suggest solutions.`;
   }): Promise<void> {
     const { requestId, content, attachments } = data;
 
-    console.log('[ChatHandlerService] Processing message:', {
+    console.log('[ChatHandlerService] Processing message with Agent SDK:', {
       requestId,
       contentLength: content.length,
       attachments: attachments?.length ?? 0,
+      isProcessing: this.isProcessing,
     });
 
-    if (!this.client) {
-      this.bridge.sendError(requestId, 'AGENT_NOT_INITIALIZED', 'Agent client not initialized');
-      return;
-    }
-
     if (this.isProcessing) {
+      console.log('[ChatHandlerService] Rejecting: isProcessing is true');
       this.bridge.sendError(requestId, 'AGENT_BUSY', 'Agent is currently processing another request');
+      // IMPORTANT: Reset bridge state since we're rejecting this request
+      // The bridge already set isRunning=true before emitting the event
+      this.bridge.markComplete();
       return;
     }
 
     this.isProcessing = true;
     this.abortController = new AbortController();
 
-    // Set current request ID for TodoList and artifact broadcasts
+    // Set current request ID for broadcasts
     setCurrentRequestId(requestId);
     setArtifactRequestId(requestId);
+    setExecutionRequestId(requestId);
 
     try {
       // Build message content with processed attachments
@@ -223,102 +177,112 @@ If you encounter errors, explain them clearly and suggest solutions.`;
           console.warn('[ChatHandlerService] Attachment processing warnings:', result.errors);
         }
 
-        // Append the context text from attachments
         if (result.contextText) {
           messageContent += result.contextText;
         }
       }
 
-      // Add to conversation history
-      this.conversationHistory.push({
-        role: 'user',
-        content: messageContent,
-      });
+      // Build system prompt
+      let systemPrompt = `You are Claude Cowork, an AI assistant running in a desktop application.
+You help users with various tasks in their workspace.
 
-      // Send request to Claude with streaming
-      const response = await this.client.messages.create({
-        model: this.currentModel,
-        max_tokens: this.config.maxTokens,
-        system: this.systemPrompt,
-        messages: this.conversationHistory.map((msg) => ({
-          role: msg.role,
-          content: msg.content,
-        })),
-        stream: true,
+Current workspace: ${this.workspacePath}
+
+Always be helpful, clear, and concise in your responses.
+When performing actions, explain what you're doing.
+If you encounter errors, explain them clearly and suggest solutions.`;
+
+      if (this.additionalInstructions) {
+        systemPrompt += `\n\nAdditional Instructions:\n${this.additionalInstructions}`;
+      }
+
+      // Use Agent SDK query() for automatic tool execution
+      const result = query({
+        prompt: messageContent,
+        options: {
+          cwd: this.workspacePath,
+          // Load skills from user (~/.claude/skills/) and project (.claude/skills/) directories
+          settingSources: ['user', 'project'],
+          allowedTools: [
+            // Skills - enables SDK to use SKILL.md files
+            'Skill',
+            // File operations
+            'Read', 'Write', 'Edit', 'MultiEdit', 'NotebookEdit',
+            // Shell operations
+            'Bash', 'BashOutput', 'KillBash',
+            // Search operations
+            'Glob', 'Grep',
+            // Web operations
+            'WebFetch', 'WebSearch',
+            // Task management
+            'TodoWrite', 'Task',
+          ],
+          permissionMode: 'bypassPermissions',
+          model: this.currentModel,
+          systemPrompt,
+          resume: this.sessionId,
+          abortController: this.abortController,
+          maxTurns: 50,
+        },
       });
 
       let fullContent = '';
       let inputTokens = 0;
       let outputTokens = 0;
-      let completionSent = false;
+      let messageCount = 0;
 
-      // Process streaming response
-      for await (const event of response) {
+      console.log('[ChatHandlerService] Starting SDK message processing loop...');
+
+      // Process Agent SDK messages
+      for await (const message of result) {
+        messageCount++;
+        console.log(`[ChatHandlerService] SDK message #${messageCount}:`, {
+          type: message.type,
+          hasMessage: 'message' in message,
+        });
+
         // Check for abort
         if (this.abortController?.signal.aborted) {
           console.log('[ChatHandlerService] Request aborted');
           break;
         }
 
-        if (event.type === 'content_block_delta') {
-          const delta = event.delta;
-          if ('text' in delta) {
-            const text = delta.text;
+        this.processAgentMessage(message, requestId, {
+          onText: (text) => {
+            console.log('[ChatHandlerService] Received text chunk:', text.substring(0, 100));
             fullContent += text;
-
-            // Send chunk to renderer
             this.bridge.sendMessageChunk(requestId, text, false);
-          }
-        }
-
-        if (event.type === 'message_delta' && event.usage) {
-          // Capture usage stats from message_delta
-          outputTokens = event.usage.output_tokens;
-        }
-
-        if (event.type === 'message_start' && event.message) {
-          // Capture input tokens from the start message
-          inputTokens = event.message.usage?.input_tokens ?? 0;
-        }
-
-        if (event.type === 'message_stop') {
-          // Add assistant response to history
-          this.conversationHistory.push({
-            role: 'assistant',
-            content: fullContent,
-          });
-
-          // Send completion with accumulated usage
-          this.bridge.sendMessageComplete(requestId, fullContent, {
-            inputTokens,
-            outputTokens,
-          });
-          completionSent = true;
-        }
-      }
-
-      // Ensure completion is sent if not already
-      if (fullContent && !this.abortController?.signal.aborted && !completionSent) {
-        this.conversationHistory.push({
-          role: 'assistant',
-          content: fullContent,
-        });
-        this.bridge.sendMessageComplete(requestId, fullContent, {
-          inputTokens,
-          outputTokens,
+          },
+          onSessionId: (id) => {
+            console.log('[ChatHandlerService] Session ID:', id);
+            this.sessionId = id;
+          },
+          onUsage: (input, output) => {
+            console.log('[ChatHandlerService] Usage:', { input, output });
+            inputTokens = input;
+            outputTokens = output;
+          },
         });
       }
+
+      console.log('[ChatHandlerService] Loop complete. Total messages:', messageCount, 'Content length:', fullContent.length);
+
+      // Send completion
+      this.bridge.sendMessageComplete(requestId, fullContent, {
+        inputTokens,
+        outputTokens,
+      });
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error('[ChatHandlerService] Message processing error:', errorMessage);
 
-      // Determine error code
       let errorCode: 'API_ERROR' | 'NETWORK_ERROR' | 'TIMEOUT' | 'UNKNOWN' = 'UNKNOWN';
       if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
         errorCode = 'NETWORK_ERROR';
       } else if (errorMessage.includes('timeout')) {
         errorCode = 'TIMEOUT';
-      } else if (errorMessage.includes('API') || errorMessage.includes('401') || errorMessage.includes('403')) {
+      } else if (errorMessage.includes('API') || errorMessage.includes('401') || errorMessage.includes('403') || errorMessage.includes('Claude Code')) {
         errorCode = 'API_ERROR';
       }
 
@@ -328,7 +292,86 @@ If you encounter errors, explain them clearly and suggest solutions.`;
       this.abortController = null;
       setCurrentRequestId(null);
       setArtifactRequestId(null);
+      setExecutionRequestId(null);
       this.bridge.markComplete();
+    }
+  }
+
+  /**
+   * Process Agent SDK message and dispatch to appropriate handlers.
+   */
+  private processAgentMessage(
+    message: SDKMessage,
+    _requestId: string,
+    handlers: {
+      onText: (text: string) => void;
+      onSessionId: (id: string) => void;
+      onUsage: (input: number, output: number) => void;
+    }
+  ): void {
+    switch (message.type) {
+      case 'system':
+        // Capture session ID for conversation continuity
+        if ('session_id' in message && message.session_id) {
+          handlers.onSessionId(message.session_id);
+        }
+        break;
+
+      case 'assistant':
+        // Extract and stream text content
+        if (message.message && 'content' in message.message) {
+          const content = message.message.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === 'text' && block.text) {
+                handlers.onText(block.text);
+              } else if (block.type === 'tool_use') {
+                // Broadcast tool use to UI
+                broadcastToolUse(
+                  block.name,
+                  block.input as Record<string, unknown>,
+                  block.id
+                );
+              }
+            }
+          } else if (typeof content === 'string') {
+            handlers.onText(content);
+          }
+        }
+        break;
+
+      case 'result':
+        // Capture usage stats
+        if ('usage' in message && message.usage) {
+          const usage = message.usage as { input_tokens?: number; output_tokens?: number };
+          handlers.onUsage(
+            usage.input_tokens ?? 0,
+            usage.output_tokens ?? 0
+          );
+        }
+
+        // Handle tool results if present
+        if ('tool_results' in message) {
+          const results = message.tool_results as Array<{
+            tool_use_id: string;
+            success: boolean;
+            output: string;
+            error?: string;
+          }>;
+          for (const result of results) {
+            broadcastToolResult(
+              result.tool_use_id,
+              result.success,
+              result.output,
+              result.error
+            );
+          }
+        }
+        break;
+
+      default:
+        // Log unhandled message types for debugging
+        console.log('[ChatHandlerService] Unhandled message type:', message.type);
     }
   }
 
@@ -355,8 +398,6 @@ If you encounter errors, explain them clearly and suggest solutions.`;
     selectedValues: string[];
   }): void {
     console.log('[ChatHandlerService] Received answer:', data);
-    // Question handling is managed by the bridge's promise resolution
-    // This is here for any additional processing if needed
   }
 
   /**
@@ -367,18 +408,11 @@ If you encounter errors, explain them clearly and suggest solutions.`;
   }
 
   /**
-   * Get conversation history length.
+   * Clear session to start fresh conversation.
    */
-  getConversationLength(): number {
-    return this.conversationHistory.length;
-  }
-
-  /**
-   * Clear conversation history.
-   */
-  clearHistory(): void {
-    this.conversationHistory = [];
-    console.log('[ChatHandlerService] Conversation history cleared');
+  clearSession(): void {
+    this.sessionId = undefined;
+    console.log('[ChatHandlerService] Session cleared');
   }
 
   /**
@@ -386,9 +420,9 @@ If you encounter errors, explain them clearly and suggest solutions.`;
    */
   cleanup(): void {
     this.handleStop();
-    this.client = null;
-    this.conversationHistory = [];
-    this.systemPrompt = '';
+    this.sessionId = undefined;
+    this.workspacePath = '';
+    this.additionalInstructions = '';
     cleanupTodoListHandlers();
     cleanupArtifactHandlers();
     console.log('[ChatHandlerService] Cleaned up');

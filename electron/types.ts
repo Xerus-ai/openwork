@@ -42,6 +42,14 @@ export const IpcChannels = {
   FILE_LIST: 'file:list',
   FILE_DOWNLOAD: 'file:download',
   FILE_DOWNLOAD_ALL: 'file:download-all',
+
+  // Settings operations
+  SETTINGS_GET: 'settings:get',
+  SETTINGS_SET: 'settings:set',
+  SETTINGS_GET_API_KEY: 'settings:get-api-key',
+  SETTINGS_SET_API_KEY: 'settings:set-api-key',
+  SETTINGS_GET_USER_NAME: 'settings:get-user-name',
+  SETTINGS_SET_USER_NAME: 'settings:set-user-name',
 } as const;
 
 export type IpcChannel = typeof IpcChannels[keyof typeof IpcChannels];
@@ -142,6 +150,12 @@ export interface DownloadAllResult {
   cancelled?: boolean;
 }
 
+// Settings data
+export interface AppSettings {
+  openRouterApiKey: string | null;
+  userName: string;
+}
+
 // API exposed to renderer via contextBridge
 export interface ElectronAPI {
   // System
@@ -171,6 +185,13 @@ export interface ElectronAPI {
   listFiles: (directoryPath: string) => Promise<FileListResult>;
   downloadArtifact: (request: DownloadRequest) => Promise<DownloadResult>;
   downloadAllArtifacts: (request: DownloadAllRequest) => Promise<DownloadAllResult>;
+
+  // Settings operations
+  getSettings: () => Promise<AppSettings>;
+  getApiKey: () => Promise<string | null>;
+  setApiKey: (key: string | null) => Promise<void>;
+  getUserName: () => Promise<string>;
+  setUserName: (name: string) => Promise<void>;
 
   // Platform info
   platform: NodeJS.Platform;

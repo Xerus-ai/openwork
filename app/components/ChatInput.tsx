@@ -1,10 +1,11 @@
 import type { ReactElement, KeyboardEvent, DragEvent, ChangeEvent } from 'react';
 import { memo, useCallback, useEffect, useRef, useState } from 'react';
-import { Send, Paperclip, AlertCircle, X } from 'lucide-react';
+import { Plus, AlertCircle, X, Circle, ListPlus, FolderOpen } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui';
 import { useFileUpload, type AttachedFile } from '@/hooks/useFileUpload';
 import { FileAttachmentList } from './FileAttachment';
+import { ModelSelector } from './ModelSelector';
 
 /**
  * Props for the ChatInput component.
@@ -16,6 +17,10 @@ export interface ChatInputProps {
   className?: string;
   /** Initial message to populate the input (used by quick actions) */
   initialMessage?: string;
+  /** Current workspace path (for display) */
+  workspacePath?: string | null;
+  /** Callback when user wants to change workspace */
+  onWorkspaceChange?: () => void;
 }
 
 /**
@@ -34,6 +39,8 @@ export const ChatInput = memo(function ChatInput({
   placeholder = 'Type a message...',
   className,
   initialMessage,
+  workspacePath,
+  onWorkspaceChange,
 }: ChatInputProps): ReactElement {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -187,8 +194,8 @@ export const ChatInput = memo(function ChatInput({
   return (
     <div
       className={cn(
-        'flex flex-col gap-2 p-4 border-t',
-        isDragging && 'ring-2 ring-primary ring-inset bg-primary/5',
+        'flex flex-col gap-2 px-4 py-3 bg-cowork-bg',
+        isDragging && 'ring-2 ring-cowork-accent ring-inset bg-cowork-accent/5',
         className
       )}
       onDragEnter={handleDragEnter}
@@ -202,7 +209,7 @@ export const ChatInput = memo(function ChatInput({
           {errors.map((error, index) => (
             <div
               key={`${error.fileName}-${index}`}
-              className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded px-3 py-2"
+              className="flex items-center gap-2 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2"
             >
               <AlertCircle className="w-4 h-4 flex-shrink-0" />
               <span className="flex-1">
@@ -211,7 +218,7 @@ export const ChatInput = memo(function ChatInput({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-5 w-5"
+                className="h-5 w-5 text-red-600 hover:text-red-700 hover:bg-red-100"
                 onClick={() => {
                   clearErrors();
                 }}
@@ -230,76 +237,130 @@ export const ChatInput = memo(function ChatInput({
         onRemove={removeFile}
       />
 
-      {/* Input area */}
-      <div className="flex items-end gap-2">
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          className="hidden"
-          onChange={handleFileInputChange}
-          accept=".txt,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.svg,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.rb,.go,.rs,.java,.c,.cpp,.h,.hpp,.sh,.bash,.zsh,.ps1,.bat,.cmd,.yaml,.yml,.toml,.ini,.env,.conf,.config"
-        />
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+        accept=".txt,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.svg,.json,.xml,.html,.css,.js,.ts,.tsx,.jsx,.py,.rb,.go,.rs,.java,.c,.cpp,.h,.hpp,.sh,.bash,.zsh,.ps1,.bat,.cmd,.yaml,.yml,.toml,.ini,.env,.conf,.config"
+      />
 
-        {/* Attachment button */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={openFilePicker}
-          disabled={disabled}
-          aria-label="Attach file"
-          title="Attach file"
-        >
-          <Paperclip className="w-5 h-5" />
-        </Button>
-
-        {/* Textarea */}
-        <div className="flex-1 relative">
+      {/* Input container - rounded with two-row layout */}
+      <div
+        className={cn(
+          'flex flex-col rounded-2xl border border-cowork-border bg-white',
+          'px-4 py-3 min-h-[100px]',
+          'focus-within:ring-2 focus-within:ring-cowork-accent/20 focus-within:border-cowork-accent/30'
+        )}
+      >
+        {/* Row 1: Textarea */}
+        <div className="flex-1 relative min-w-0 mb-2">
           <textarea
             ref={textareaRef}
             value={message}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder="Reply..."
             disabled={disabled}
-            rows={1}
+            rows={2}
             className={cn(
-              'w-full resize-none rounded-lg border bg-background px-4 py-3 pr-12',
-              'text-sm placeholder:text-muted-foreground',
-              'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+              'w-full resize-none bg-transparent border-none outline-none',
+              'text-base text-cowork-text placeholder:text-cowork-text-muted',
               'disabled:cursor-not-allowed disabled:opacity-50',
-              'min-h-[48px] max-h-[200px]'
+              'min-h-[48px] max-h-[150px]'
             )}
             aria-label="Message input"
           />
 
           {/* Drag overlay indicator */}
           {isDragging && (
-            <div className="absolute inset-0 flex items-center justify-center rounded-lg border-2 border-dashed border-primary bg-primary/10 pointer-events-none">
-              <span className="text-sm font-medium text-primary">
+            <div className="absolute inset-0 flex items-center justify-center rounded-xl border-2 border-dashed border-cowork-accent bg-cowork-accent/10 pointer-events-none">
+              <span className="text-sm font-medium text-cowork-accent">
                 Drop files here
               </span>
             </div>
           )}
         </div>
 
-        {/* Send button */}
-        <Button
-          variant="default"
-          size="icon"
-          onClick={handleSend}
-          disabled={disabled || !hasContent}
-          aria-label="Send message"
-          title="Send message (Enter)"
-        >
-          <Send className="w-5 h-5" />
-        </Button>
+        {/* Row 2: Controls */}
+        <div className="flex items-center gap-2">
+          {/* Plus/Add button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={openFilePicker}
+            disabled={disabled}
+            className="h-9 w-9 flex-shrink-0 text-cowork-text-muted hover:text-cowork-text hover:bg-cowork-hover rounded-full"
+            aria-label="Add attachment"
+            title="Add attachment"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+
+          {/* Workspace folder indicator */}
+          {onWorkspaceChange && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onWorkspaceChange}
+              disabled={disabled}
+              className="h-9 flex-shrink-0 text-cowork-text-muted hover:text-cowork-text hover:bg-cowork-hover rounded-full px-3 gap-1.5 max-w-[200px]"
+              aria-label="Change workspace folder"
+              title={workspacePath || 'Select workspace folder'}
+            >
+              <FolderOpen className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm truncate">
+                {workspacePath ? workspacePath.split(/[/\\]/).pop() : 'Select folder'}
+              </span>
+            </Button>
+          )}
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Model selector */}
+          <ModelSelector
+            className="flex-shrink-0 h-9 w-auto border-0 bg-transparent shadow-none text-cowork-text-muted hover:text-cowork-text"
+            disabled={disabled}
+          />
+
+          {/* Stop button - circle with filled dot */}
+          <Button
+            variant="ghost"
+            size="icon"
+            disabled={disabled}
+            className="h-9 w-9 flex-shrink-0 text-cowork-text-muted hover:text-cowork-text hover:bg-cowork-hover rounded-full border border-cowork-border"
+            aria-label="Stop"
+            title="Stop"
+          >
+            <Circle className="w-4 h-4 fill-current" />
+          </Button>
+
+          {/* Queue button - coral/salmon with list icon */}
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleSend}
+            disabled={disabled || !hasContent}
+            className={cn(
+              'h-9 flex-shrink-0 rounded-full px-4 gap-1.5',
+              'bg-cowork-accent hover:bg-cowork-accent-hover text-white',
+              'disabled:opacity-40 disabled:bg-cowork-border'
+            )}
+            aria-label="Queue message"
+            title="Queue message (Enter)"
+          >
+            <ListPlus className="w-4 h-4" />
+            <span className="text-sm font-medium">Queue</span>
+          </Button>
+        </div>
       </div>
 
-      {/* Helper text */}
-      <p className="text-xs text-muted-foreground text-center">
-        Press Enter to send, Shift+Enter for new line. Drag files to attach.
+      {/* Disclaimer text */}
+      <p className="text-xs text-cowork-text-muted text-center">
+        AI can make mistakes. Please double-check responses.
       </p>
     </div>
   );

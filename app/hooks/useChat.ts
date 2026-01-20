@@ -41,6 +41,8 @@ export interface ChatActions {
   setMessageError: (messageId: string) => void;
   clearMessages: () => void;
   updateMessageContent: (messageId: string, content: string) => void;
+  /** Set all messages (used for loading session messages) */
+  setMessages: (messages: ChatMessage[]) => void;
 }
 
 /**
@@ -69,7 +71,7 @@ function generateMessageId(): string {
  * completeMessage(assistantMsgId);
  */
 export function useChat(): ChatState & ChatActions {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessagesState] = useState<ChatMessage[]>([]);
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
 
   // Use ref to avoid stale closures in streaming callbacks
@@ -90,7 +92,7 @@ export function useChat(): ChatState & ChatActions {
       status: 'complete',
     };
 
-    setMessages((prev) => [...prev, message]);
+    setMessagesState((prev) => [...prev, message]);
     return id;
   }, []);
 
@@ -108,7 +110,7 @@ export function useChat(): ChatState & ChatActions {
       status: 'streaming',
     };
 
-    setMessages((prev) => [...prev, message]);
+    setMessagesState((prev) => [...prev, message]);
     setStreamingMessageId(id);
     return id;
   }, []);
@@ -117,7 +119,7 @@ export function useChat(): ChatState & ChatActions {
    * Appends content to an existing message (for streaming).
    */
   const appendToMessage = useCallback((messageId: string, content: string): void => {
-    setMessages((prev) =>
+    setMessagesState((prev) =>
       prev.map((msg) =>
         msg.id === messageId
           ? { ...msg, content: msg.content + content }
@@ -130,7 +132,7 @@ export function useChat(): ChatState & ChatActions {
    * Updates the entire content of a message.
    */
   const updateMessageContent = useCallback((messageId: string, content: string): void => {
-    setMessages((prev) =>
+    setMessagesState((prev) =>
       prev.map((msg) =>
         msg.id === messageId
           ? { ...msg, content }
@@ -143,7 +145,7 @@ export function useChat(): ChatState & ChatActions {
    * Marks a message as complete.
    */
   const completeMessage = useCallback((messageId: string): void => {
-    setMessages((prev) =>
+    setMessagesState((prev) =>
       prev.map((msg) =>
         msg.id === messageId
           ? { ...msg, status: 'complete' as const }
@@ -159,7 +161,7 @@ export function useChat(): ChatState & ChatActions {
    * Marks a message as having an error.
    */
   const setMessageError = useCallback((messageId: string): void => {
-    setMessages((prev) =>
+    setMessagesState((prev) =>
       prev.map((msg) =>
         msg.id === messageId
           ? { ...msg, status: 'error' as const }
@@ -175,7 +177,15 @@ export function useChat(): ChatState & ChatActions {
    * Clears all messages from the chat history.
    */
   const clearMessages = useCallback((): void => {
-    setMessages([]);
+    setMessagesState([]);
+    setStreamingMessageId(null);
+  }, []);
+
+  /**
+   * Sets all messages (used for loading session messages).
+   */
+  const setMessages = useCallback((newMessages: ChatMessage[]): void => {
+    setMessagesState(newMessages);
     setStreamingMessageId(null);
   }, []);
 
@@ -190,5 +200,6 @@ export function useChat(): ChatState & ChatActions {
     setMessageError,
     clearMessages,
     updateMessageContent,
+    setMessages,
   };
 }

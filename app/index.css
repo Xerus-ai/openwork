@@ -52,6 +52,27 @@
   --color-sidebar-accent-foreground: oklch(0.205 0.042 265.755);
   --color-sidebar-border: oklch(0.922 0.004 286.32);
   --color-sidebar-ring: oklch(0.871 0.006 286.286);
+
+  /**
+   * Cowork theme colors - matching reference design
+   * Warm cream/off-white background with coral/terracotta accents
+   */
+  --color-cowork-bg: #F5F5F0;
+  --color-cowork-bg-alt: #FAFAF8;
+  --color-cowork-card-bg: #F8F8F5;
+  --color-cowork-text: #1A1A1A;
+  --color-cowork-text-muted: #6B6B6B;
+  --color-cowork-accent: #E07A5F;
+  --color-cowork-accent-hover: #D4694E;
+  --color-cowork-border: #E5E5E0;
+  --color-cowork-border-hover: #D4D4D0;
+  --color-cowork-selected: #E8E8E3;
+  --color-cowork-hover: #EDEDEA;
+  --color-cowork-toggle-bg: #E5E5E0;
+  --color-cowork-active: #3B82F6;
+  --color-cowork-success: #10B981;
+  --color-cowork-sidebar-bg: #F5F5F0;
+  --color-cowork-input-bg: #FFFFFF;
 }
 
 /**
@@ -110,8 +131,8 @@ body,
 }
 
 body {
-  background-color: var(--color-background);
-  color: var(--color-foreground);
+  background-color: var(--color-cowork-bg);
+  color: var(--color-cowork-text);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, sans-serif;
   font-size: 14px;

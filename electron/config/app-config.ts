@@ -23,6 +23,10 @@ export interface AppConfigSchema {
   } | null;
   /** Selected model ID */
   selectedModel: string;
+  /** OpenRouter API key for LLM access */
+  openRouterApiKey: string | null;
+  /** User display name */
+  userName: string;
 }
 
 /**
@@ -33,6 +37,8 @@ const defaults: AppConfigSchema = {
   workspaceSelectedAt: null,
   windowState: null,
   selectedModel: 'claude-sonnet-4-20250514',
+  openRouterApiKey: null,
+  userName: 'Test User',
 };
 
 /**
