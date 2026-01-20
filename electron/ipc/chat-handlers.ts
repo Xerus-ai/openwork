@@ -10,6 +10,7 @@ import {
   setCurrentRequestId,
   initializeTodoListHandlers,
   cleanupTodoListHandlers,
+  getTodoListBroadcaster,
 } from './todolist-handlers.js';
 import {
   setArtifactRequestId,
@@ -216,8 +217,65 @@ If you encounter errors, explain them clearly and suggest solutions.`;
             'WebFetch', 'WebSearch',
             // Task management
             'TodoWrite', 'Task',
+            // Interactive tools
+            'AskUserQuestion',
           ],
-          permissionMode: 'bypassPermissions',
+          permissionMode: 'default',
+          // Handle tool permissions - especially AskUserQuestion which needs UI interaction
+          canUseTool: async (toolName: string, input: Record<string, unknown>) => {
+            // Handle AskUserQuestion specially - show UI and get user response
+            if (toolName === 'AskUserQuestion') {
+              try {
+                const questions = input.questions as Array<{
+                  question: string;
+                  header: string;
+                  options: Array<{ label: string; description: string }>;
+                  multiSelect: boolean;
+                }>;
+
+                // Collect answers for all questions
+                const answers: Record<string, string> = {};
+
+                for (const q of questions) {
+                  // Convert options to bridge format
+                  const options = q.options.map((opt) => ({
+                    label: opt.label,
+                    value: opt.label,
+                    description: opt.description,
+                  }));
+
+                  // Ask the user via the bridge
+                  const selectedValues = await this.bridge.askQuestion(
+                    requestId,
+                    q.question,
+                    options,
+                    q.multiSelect
+                  );
+
+                  // Store answer - comma-separated for multi-select
+                  answers[q.question] = selectedValues.join(', ');
+                }
+
+                // Return with answers populated
+                return {
+                  behavior: 'allow' as const,
+                  updatedInput: {
+                    questions: input.questions,
+                    answers,
+                  },
+                };
+              } catch (error) {
+                const msg = error instanceof Error ? error.message : 'User cancelled';
+                return {
+                  behavior: 'deny' as const,
+                  message: msg,
+                };
+              }
+            }
+
+            // Allow all other tools
+            return { behavior: 'allow' as const };
+          },
           model: this.currentModel,
           systemPrompt,
           resume: this.sessionId,
@@ -332,10 +390,91 @@ If you encounter errors, explain them clearly and suggest solutions.`;
                   block.input as Record<string, unknown>,
                   block.id
                 );
+
+                // Handle TodoWrite specifically to update Progress pane
+                if (block.name === 'TodoWrite') {
+                  const input = block.input as { todos?: Array<{
+                    content: string;
+                    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+                    activeForm?: string;
+                  }> };
+
+                  if (input.todos && Array.isArray(input.todos)) {
+                    const broadcaster = getTodoListBroadcaster();
+                    if (broadcaster) {
+                      // Transform SDK todo format to our format
+                      const now = new Date().toISOString();
+                      const todoList = {
+                        items: input.todos.map((todo, index) => ({
+                          id: `todo-${Date.now()}-${index}`,
+                          content: todo.content,
+                          status: todo.status,
+                          createdAt: now,
+                          updatedAt: now,
+                          completedAt: todo.status === 'completed' ? now : undefined,
+                          blockedReason: undefined,
+                        })),
+                        createdAt: now,
+                        updatedAt: now,
+                      };
+
+                      console.log('[ChatHandlerService] Broadcasting TodoWrite update:', {
+                        itemCount: todoList.items.length,
+                      });
+
+                      broadcaster(todoList);
+                    } else {
+                      console.warn('[ChatHandlerService] TodoList broadcaster not available');
+                    }
+                  }
+                }
               }
             }
           } else if (typeof content === 'string') {
             handlers.onText(content);
+          }
+        }
+        break;
+
+      case 'user':
+        // Handle tool results in user messages (SDK sends tool results this way)
+        if (message.message && 'content' in message.message) {
+          const content = message.message.content;
+          if (Array.isArray(content)) {
+            for (const block of content) {
+              if (block.type === 'tool_result') {
+                // Extract tool result data
+                const toolUseId = block.tool_use_id;
+                const isError = block.is_error === true;
+                let output = '';
+
+                // Extract output content
+                if (typeof block.content === 'string') {
+                  output = block.content;
+                } else if (Array.isArray(block.content)) {
+                  const textBlocks: string[] = [];
+                  for (const contentBlock of block.content) {
+                    if (contentBlock.type === 'text' && 'text' in contentBlock) {
+                      textBlocks.push(String(contentBlock.text));
+                    }
+                  }
+                  output = textBlocks.join('\n');
+                }
+
+                console.log('[ChatHandlerService] Tool result from user message:', {
+                  toolUseId,
+                  isError,
+                  outputLength: output.length,
+                });
+
+                broadcastToolResult(
+                  toolUseId,
+                  !isError,
+                  output,
+                  isError ? output : undefined
+                );
+              }
+            }
           }
         }
         break;
@@ -350,7 +489,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
           );
         }
 
-        // Handle tool results if present
+        // Handle tool results if present (alternative format)
         if ('tool_results' in message) {
           const results = message.tool_results as Array<{
             tool_use_id: string;
@@ -371,7 +510,7 @@ If you encounter errors, explain them clearly and suggest solutions.`;
 
       default:
         // Log unhandled message types for debugging
-        console.log('[ChatHandlerService] Unhandled message type:', message.type);
+        console.log('[ChatHandlerService] Unhandled message type:', message.type, JSON.stringify(message).substring(0, 200));
     }
   }
 

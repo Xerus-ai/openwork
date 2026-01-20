@@ -91,11 +91,20 @@ export interface AgentChatActions extends Omit<ChatActions, 'addUserMessage'> {
 }
 
 /**
+ * Options for useAgentChat hook.
+ */
+export interface UseAgentChatOptions {
+  /** Override workspace path (e.g., from session). If provided, this takes precedence over global workspace. */
+  workspacePathOverride?: string | null;
+}
+
+/**
  * Hook for managing agent chat integration.
  *
  * Connects the chat UI to the agent backend through IPC,
  * handling initialization, message streaming, and tool executions.
  *
+ * @param options - Optional configuration including workspace path override
  * @returns Agent chat state and actions
  *
  * @example
@@ -105,7 +114,7 @@ export interface AgentChatActions extends Omit<ChatActions, 'addUserMessage'> {
  *   connectionState,
  *   sendMessage,
  *   initializeAgent,
- * } = useAgentChat();
+ * } = useAgentChat({ workspacePathOverride: sessionWorkspacePath });
  *
  * // Initialize agent when workspace is selected
  * await initializeAgent();
@@ -113,11 +122,16 @@ export interface AgentChatActions extends Omit<ChatActions, 'addUserMessage'> {
  * // Send a message
  * await sendMessage("Create a document about React");
  */
-export function useAgentChat(): AgentChatState & AgentChatActions {
+export function useAgentChat(options?: UseAgentChatOptions): AgentChatState & AgentChatActions {
   const chat = useChat();
   const { selectedModel } = useModel();
-  const { workspacePath, validationResult } = useWorkspace();
+  const { workspacePath: globalWorkspacePath, validationResult } = useWorkspace();
   const questions = useQuestions();
+
+  // Use the session workspace if provided, otherwise fall back to global workspace
+  const workspacePath = options?.workspacePathOverride !== undefined
+    ? options.workspacePathOverride
+    : globalWorkspacePath;
 
   const [connectionState, setConnectionState] = useState<AgentConnectionState>('disconnected');
   const [isAgentInitialized, setIsAgentInitialized] = useState(false);
@@ -342,9 +356,9 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
     setLastError(null);
 
     try {
-      // Pass workspace path (can be null - agent-bridge will use default)
+      // Pass workspace path (empty string tells agent-bridge to use default)
       const response = await clientRef.current.initAgent(
-        workspacePath || undefined,
+        workspacePath || '',
         selectedModel
       );
 
@@ -372,14 +386,16 @@ export function useAgentChat(): AgentChatState & AgentChatActions {
   }, [workspacePath, validationResult, selectedModel]);
 
   /**
-   * Re-initialize when model changes (if already initialized).
+   * Re-initialize when model or workspace changes (if already initialized).
+   * This ensures the agent uses the correct workspace path when it changes.
    */
   useEffect(() => {
-    if (isAgentInitialized && workspacePath) {
-      // Re-initialize with new model
+    if (isAgentInitialized) {
+      // Re-initialize with new model or workspace
+      console.log('[useAgentChat] Re-initializing agent - model or workspace changed');
       initializeAgent();
     }
-  }, [selectedModel]); // Intentionally excluding other deps to avoid loops
+  }, [selectedModel, workspacePath]); // Watch both model and workspace changes
 
   /**
    * Send a message to the agent.

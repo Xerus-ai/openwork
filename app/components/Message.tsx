@@ -1,7 +1,7 @@
 import type { ReactElement } from 'react';
 import { memo, useMemo } from 'react';
 import { cn } from '@/lib/utils';
-import type { ChatMessage, MessageRole } from '@/hooks/useChat';
+import type { ChatMessage } from '@/hooks/useChat';
 
 /**
  * Props for the Message component.
@@ -9,29 +9,6 @@ import type { ChatMessage, MessageRole } from '@/hooks/useChat';
 export interface MessageProps {
   message: ChatMessage;
   className?: string;
-}
-
-/**
- * Formats a timestamp for display.
- * Shows time only for recent messages, date for older ones.
- */
-function formatTimestamp(date: Date): string {
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-
-  if (isToday) {
-    return date.toLocaleTimeString(undefined, {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
 }
 
 /**

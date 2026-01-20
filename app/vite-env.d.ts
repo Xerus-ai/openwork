@@ -137,9 +137,38 @@ interface ElectronAPI {
   downloadArtifact: (request: DownloadRequest) => Promise<DownloadResult>;
   downloadAllArtifacts: (request: DownloadAllRequest) => Promise<DownloadAllResult>;
 
+  // Folder selection
+  selectFolder: () => Promise<{ path: string } | null>;
+  listDirectory: (options: { path: string }) => Promise<{ entries?: FileEntry[] }>;
+
+  // Settings
+  getSettings: () => Promise<{ openRouterApiKey?: string | null; userName?: string }>;
+  setApiKey: (key: string | null) => Promise<void>;
+  getUserName: () => Promise<string>;
+  setUserName: (name: string) => Promise<void>;
+
   // Platform info
   platform: NodeJS.Platform;
   isDevelopment: boolean;
+}
+
+/**
+ * Processing status types for agent updates.
+ */
+type ProcessingStatus =
+  | 'sending'
+  | 'processing'
+  | 'thinking'
+  | 'responding'
+  | 'idle';
+
+/**
+ * Agent status update notification.
+ */
+interface AgentStatusUpdate extends IpcBaseMessage {
+  requestId: string;
+  status: ProcessingStatus;
+  message: string;
 }
 
 /**
@@ -375,6 +404,7 @@ interface ElectronAgentAPI {
   onTodoUpdate: (callback: (update: AgentTodoUpdate) => void) => () => void;
   onArtifactCreated: (callback: (artifact: AgentArtifactCreated) => void) => () => void;
   onSkillLoaded: (callback: (skill: AgentSkillLoaded) => void) => () => void;
+  onStatusUpdate: (callback: (status: AgentStatusUpdate) => void) => () => void;
   onError: (callback: (error: AgentError) => void) => () => void;
 }
 

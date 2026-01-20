@@ -128,9 +128,10 @@ export function SessionProvider({ children }: SessionProviderProps): ReactElemen
     setWorkingFiles((prev) => {
       // Check if file already exists by path, update it instead
       const existingIndex = prev.findIndex((f) => f.path === file.path);
-      if (existingIndex >= 0) {
+      const existingFile = prev[existingIndex];
+      if (existingIndex >= 0 && existingFile) {
         const updated = [...prev];
-        updated[existingIndex] = { ...file, id: prev[existingIndex].id, timestamp };
+        updated[existingIndex] = { ...file, id: existingFile.id, timestamp };
         return updated;
       }
       // Keep only last 10 working files

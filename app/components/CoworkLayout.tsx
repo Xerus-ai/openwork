@@ -351,7 +351,7 @@ export const CoworkLayout = memo(function CoworkLayout({
 
     try {
       const result = await api.selectFolder();
-      if (result.path) {
+      if (result?.path) {
         // Get folder contents
         const contentsResult = await api.listDirectory({ path: result.path });
         const contents = contentsResult.entries ?? [];

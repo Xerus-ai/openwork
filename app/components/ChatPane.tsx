@@ -224,7 +224,8 @@ export const ChatPane = memo(function ChatPane({
   sessionWorkspacePath,
   onWorkspaceChange,
 }: ChatPaneProps): ReactElement {
-  const agentChat = useAgentChat();
+  // Pass session workspace path to useAgentChat so the agent uses the correct workspace
+  const agentChat = useAgentChat({ workspacePathOverride: sessionWorkspacePath });
   const {
     messages,
     streamingMessageId,
